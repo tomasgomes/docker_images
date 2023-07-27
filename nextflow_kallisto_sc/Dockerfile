@@ -1,12 +1,3 @@
-## Build as an image
-# docker build -t nextflow_kallisto_sc .
-
-
-## open interactive image (console)
-# docker run -i -t ubuntu:22.04
-
-
-
 FROM ubuntu:22.04
 RUN apt-get update
 
