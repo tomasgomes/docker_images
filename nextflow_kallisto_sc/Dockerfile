@@ -75,3 +75,9 @@ RUN chmod +x nextflow
 ## add nextflow to path
 ENV PATH=$PATH:/opt
 
+
+WORKDIR /
+VOLUME /rootvol
+WORKDIR /rootvol
+ENTRYPOINT ["nextflow"]
+

@@ -10,7 +10,9 @@ docker build -t nextflow_kallisto_sc ./
 
 ### Open interactive image (console)
 ```{bash}
-docker run -i -t nextflow_kallisto_sc
+# this will be interactive, and remove the container after exit
+# will also map the pwd into rootvol
+docker run --rm -i -t -v $(pwd):/rootvol nextflow_kallisto_sc
 ```
 
 ### Push an image to dockerhub
