@@ -1,7 +1,7 @@
 ## Description
 
 This image is used to run a kallisto-bustools nextflow pipeline. The entrypoint 
-of the image is `nextflow`.
+of the image is `nextflow`.  
 
 TODO:
  - test in Lobo

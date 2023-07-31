@@ -69,6 +69,7 @@ RUN R --no-echo --no-restore --no-save -e "install.packages('hdf5r')"
 #nextflow
 WORKDIR /opt
 RUN apt-get update && apt-get install -y procps default-jre default-jdk
+## only up to this version to work with kallisto_nextflow.nf pipeline
 ENV NXF_VER=22.10.6
 RUN wget -qO- https://get.nextflow.io | bash
 RUN chmod +x nextflow
