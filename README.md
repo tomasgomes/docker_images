@@ -26,3 +26,10 @@ docker images
 # push it to dockerhub
 docker push tomasgomes/nextflow_kallisto_sc:0.1
 ```
+
+## TODO
+ - testing in Lobo server
+ - SComatic image
+ - SRA download image
+ - jupyter/python image (based off of existing RStudio image)
+ -
