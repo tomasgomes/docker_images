@@ -1,6 +1,9 @@
 # Docker images
 
-A central repository for all main docker images developed. 
+A central repository for all main docker images developed.  
+
+Images can be found in the following DockerHub repositories:  
+ - https://hub.docker.com/u/tomasgomes
 
 ## Useful docker commands
 ### Build as an image
