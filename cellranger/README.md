@@ -1,11 +1,13 @@
 ## Description
 
-An image to run cellranger.  
+An image to run cellranger.
 
 TODO:
- - test in Lobo
+
+-   test in Lobo
 
 ## Build image
+
 ```{bash}
 # before building, go to
 ## https://support.10xgenomics.com/single-cell-gene-expression/software/downloads/latest/
@@ -15,6 +17,7 @@ docker build -t cellranger --build-arg CELLRANGER_VERSION="7.1.0" --build-arg DO
 ```
 
 ## Run
+
 ```{bash}
 # no args
 docker run --rm -i -t -v $(pwd):/rootvol cellranger
@@ -23,7 +26,3 @@ docker run --rm -t -v $(pwd):/rootvol cellranger count --id=HC1_CR \
 --fastqs=data/published/HC1 --sample=Hong2021_HC1 --localcores=2 \
 --transcriptome=data/references/human/refdata-gex-GRCh38-2020-A
 ```
-
-
-
-

@@ -1,17 +1,21 @@
 # Docker images
 
-A central repository for all main docker images developed.  
+A central repository for all main docker images developed.
 
-Images can be found in the following DockerHub repositories:  
- - https://hub.docker.com/u/tomasgomes
+Images can be found in the following DockerHub repositories:
+
+-   <https://hub.docker.com/u/tomasgomes>
 
 ## Useful docker commands
+
 ### Build as an image
+
 ```{bash}
 docker build -t nextflow_kallisto_sc ./
 ```
 
 ### Open interactive image (console)
+
 ```{bash}
 # this will be interactive, and remove the container after exit
 # will also map the pwd into rootvol
@@ -19,6 +23,7 @@ docker run --rm -i -t -v $(pwd):/rootvol nextflow_kallisto_sc
 ```
 
 ### Push an image to dockerhub
+
 ```{bash}
 # login to Docker ($DOCKERT should be your token/password)
 docker login -u tomasgomes -p $DOCKERT
@@ -31,8 +36,11 @@ docker push tomasgomes/nextflow_kallisto_sc:0.1
 ```
 
 ## TODO
- - testing in Lobo server
- - SComatic image
- - SRA download image
- - jupyter/python image (based off of existing RStudio image)
- -
+
+-   testing in Lobo server
+-   souporcell image
+-   SComatic image
+-   SRA download image
+-   jupyter/python image (based off of existing RStudio image)
+-   CellPhoneDB image
+-   
