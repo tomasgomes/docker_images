@@ -4,7 +4,7 @@ An example of how to run souporcell. The package is already organised into a Doc
 
 TODO:
 
--   test in Lobo
+-   test with the --known_genotypes and --known_genotypes_sample_names options
 
 ## Get image
 

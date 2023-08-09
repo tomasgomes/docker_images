@@ -37,8 +37,7 @@ docker push tomasgomes/nextflow_kallisto_sc:0.1
 
 ## TODO
 
--   testing in Lobo server
--   souporcell image
+-   base interactive computational image
 -   SComatic image
 -   SRA download image
 -   jupyter/python image (based off of existing RStudio image)
