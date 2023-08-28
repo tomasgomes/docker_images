@@ -1,6 +1,6 @@
 ## Description
 
-This image is used to run a kallisto-bustools nextflow pipeline. The entrypoint of the image is `nextflow`.
+This image is used to run a kallisto-bustools nextflow pipeline. The entrypoint of the image is `nextflow`. The nextflow pipeline can be found [here](https://github.com/tomasgomes/quantification_nextflow).
 
 TODO:
 
