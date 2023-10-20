@@ -17,6 +17,16 @@ docker build -t scomatic_pipeline ./
 ## Run
 
 ```{bash}
-# no args
-docker run --rm -i -t scomatic_pipeline
+# with volume mounted in /rootvol/localdir; dry run
+docker run --rm -i -t -v $(pwd):/rootvol/localdir scomatic_pipeline
+# proper run
+docker run --rm -i -t -v $(pwd):/rootvol/localdir scomatic_pipeline run localdir/docker_images/SComatic/SComatic_pipeline.nf --samplename testchr1 --outdir /rootvol/localdir/testchr1/ --genome /rootvol/localdir/data/references/human/refdata-gex-GRCh38-2020-A/fasta/genome.fa --bam /rootvol/localdir/bam/possorted_genome_bam_chr1.bam --ct /rootvol/localdir/projects/Hong2021_SS_blood/results/ct_df.tsv
+
+
+
+docker run --rm -i -t -v $(pwd):/rootvol/localdir scomatic_pipeline run localdir/docker_images/SComatic/SComatic_pipeline.nf --samplename testchr1 --outdir localdir/testchr1/ --genome localdir/data/references/human/refdata-gex-GRCh38-2020-A/fasta/genome.fa --bam localdir/bam/possorted_genome_bam_chr1.bam --ct localdir/projects/Hong2021_SS_blood/results/ct_df.tsv
+
+
+
+docker run --rm -i -t -v $(pwd):/rootvol/localdir scomatic_pipeline run localdir/docker_images/SComatic/SComatic_pipeline.nf --samplename testchr1 --outdir testchr1/ --genome /data/references/human/refdata-gex-GRCh38-2020-A/fasta/genome.fa --bam bam/possorted_genome_bam_chr1.bam --ct projects/Hong2021_SS_blood/results/ct_df.tsv
 ```

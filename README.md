@@ -40,6 +40,7 @@ docker push tomasgomes/nextflow_kallisto_sc:0.1
 -   base interactive computational image
 -   SComatic image
 -   SRA download image
--   jupyter/python image (based off of existing RStudio image)
+-   base jupyter/python image (based off of existing RStudio image)
+-   single-cell/spatial jupyter/python image (based off of existing RStudio image)
 -   CellPhoneDB image
 -   

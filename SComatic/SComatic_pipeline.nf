@@ -13,131 +13,242 @@ params.ct = false
 params.mincells = 4
 params.mincelltypes = 2
 params.cores = 12
+params.cellsites = true
+params.cellgenotypes = true
 
 
 
 /*
  * Input parameters validation and preparation
  */
-if(!params.bam) exit 1, "Please provide an input sorted BAM file"
-if(!params.ct) exit 1, "Please provide an input cell type annotation. Should be a tab-separated table with Index and Cell_type columns"
-if(!params.samplename) exit 1, "Please provide a name for this sample"
-if(!params.genome) exit 1, "Please provide a genome reference in FASTA format"
-
-if(file("${params.outdir}${params.samplename}").exists()) println "Output folder already exists. No files will be overwritten, but execution may fail."
+if(!params.bam) exit 1, "Please provide a sorted BAM file."
+if(!params.ct) exit 1, "Please provide a file with cell type annotation. Should be a tab-separated table with Index and Cell_type columns."
+if(!params.samplename) exit 1, "Please provide a name for this sample."
+if(!params.genome) exit 1, "Please provide a genome reference in FASTA format."
 
 
 
 /*
- * Step 0. Getting things going
+ * Step 0. Get things going
  */
-process starting{
+process starting {
 
     script:
     """
-    echo Starting...
+    ls -lh
     """
 }
 
 /*
  * Step 1. Split the BAM file by cell type
  */
-process splitbam {
+process splitBAM {
 
-    input:
-    file(params.bam)
-    //file transcriptome_file
+  input:
+  val inbam // has to be val because of the index file
+  path metact
 
-    output:
-    file params.transindex into transcriptome_index
+  output:
+  path("${params.samplename}.report.txt")
+  path("${params.samplename}.*.bam")
+  path("${params.samplename}.*.bam.bai")
+  
+  storeDir "${params.outdir}"
 
-    script:
-    """
-    python SComatic/scripts/SplitBam/SplitBamCellTypes.py --bam ${params.bam} \\
-        --meta ${params.ct} --id ${params.samplename} --outdir ${params.outdir}
-    kallisto index -i ${params.transindex} -k 31 --make-unique ${transcriptome_file}
-    """
+  script:
+  """
+  mkdir -p /rootvol/${params.outdir}
+  python3 /rootvol/SComatic/scripts/SplitBam/SplitBamCellTypes.py --bam ${inbam} \\
+      --meta ${metact} --id ${params.samplename} --outdir ./
+  """
 }
 
 /*
- * Step 2. Do pseudoalignment with kallisto for plate-based data
+ * Step 2. Detect base variations per cell
  */
-process pseudoalPlate {
-    storeDir params.outdir
+process baseCellCounts {
+  
+  input:
+  path subbam // has to be val because of the index file
+  path subbai
 
-    input:
-    file index from transcriptome_index
-    file batchkal from batch_kal.collect()
+  output:
+  path outtsv
 
-    output:
-    file params.samplename into kallisto_pseudo
-
-    when: params.protocol=='plate'
-
-    script:
-    """
-    kallisto pseudo -t ${params.cores} --quant \\
-        -i $index \\
-        -o ${params.samplename} \\
-        -b $batchkal
-    """
+  storeDir "${params.outdir}/tables"
+  
+  script:
+  outtsv = subbam.name.replaceAll("bam","tsv")
+  """
+  mkdir -p ${params.outdir}/tables
+  python3 /rootvol/SComatic/scripts/BaseCellCounter/BaseCellCounter.py \\
+      --bam ${subbam} --ref ${params.genome} --chrom all --out_folder ./ \\
+      --nprocs ${params.cores} --tmp_dir ./${params.samplename}_tmp
+  """
 }
 
 /*
- * Step 2. Do pseudoalignment with kallisto
+ * Step 3. Merge base counts
  */
-process pseudoal {
-
-    //publishDir params.outdir, mode: 'copy'
-    storeDir params.outdir
-
-    input:
-    file index from transcriptome_index
-    file reads from read_files_kallisto.collect()
-
-    output:
-    file params.samplename into kallisto_bus_to_sort
-    file "${params.samplename}/output.bus"
-    file "${params.samplename}/matrix.ec"
-    file "${params.samplename}/transcripts.txt"
-
-    when: params.protocol!='plate'
-
-    script:
-    if(params.protocol=='visiumv1')
-        """
-        kallisto bus \\
-            -i $index \\
-            -o ${params.samplename} \\
-            -x 0,0,16:0,16,28:1,0,0 \\
-            -t ${params.cores} \\
-            $reads
-        """
-    else if(params.protocol=='sc5pe')
-        """
-        kallisto bus \\
-            -i $index \\
-            -o ${params.samplename} \\
-            -x 0,0,16:0,16,26:0,26,0,1,0,0 \\
-            -t ${params.cores} \\
-            $reads
-        """
-    else if(params.protocol=='sc5pe')
-        """
-        kallisto bus \\
-            -i $index \\
-            -o ${params.samplename} \\
-            -x 0,0,16:0,16,26:0,26,0,1,0,0 \\
-            -t 16 \\
-            $reads
-        """
-    else
-        """
-        kallisto bus \\
-            -i $index \\
-            -o ${params.samplename} \\
-            -x ${params.protocol} \\
-            -t ${params.cores} \\
-            $reads
-        """
+process mergeCounts {
+  
+  input:
+  path tables_calls
+  
+  output:
+  path("merged_tables.tsv")
+  
+  storeDir "${params.outdir}/tables"
+  
+  script:
+  """
+  python3 /rootvol/SComatic/scripts/MergeCounts/MergeBaseCellCounts.py \\
+      --tsv_folder ./ --outfile ./merged_tables.tsv
+  """
 }
+
+/*
+ * Step 4. Call variation per cell type
+ */
+process baseCallStep1 {
+  
+  input:
+  path merged_tables
+  
+  output:
+  path basecalling1.calling.step1.tsv
+  
+  storeDir "${params.outdir}"
+  
+  script:
+  """
+  python3 /rootvol/SComatic/scripts/BaseCellCalling/BaseCellCalling.step1.py \\
+      --infile ${merged_tables} --outfile ./basecalling1 \\
+      --ref ${params.genome} --min_cells ${params.mincells}
+  """
+}
+
+/*
+ * Step 5. Compare calls to references
+ */
+process baseCallStep2 {
+  
+  input:
+  path basecalling1
+  
+  output:
+  path basecalling2.calling.step2.tsv
+  
+  storeDir "${params.outdir}"
+  
+  script:
+  """
+  python3 /rootvol/SComatic/scripts/BaseCellCalling/BaseCellCalling.step2.py 
+      --infile ${basecalling1}
+      --outfile basecalling2 --editing /rootvol/SComatic/RNAediting/AllEditingSites.hg38.txt 
+      --pon /rootvol/SComatic/PoNs/PoN.scRNAseq.hg38.tsv
+  """
+}
+
+/*
+ * Step 6. Collect all variation sites
+ */
+process callableSites {
+  
+  input:
+  file basecalling2
+  
+  output:
+  file callableSites.coverage_cell_count.report.tsv.gz
+  
+  storeDir "${params.outdir}"
+  
+  script:
+  """
+  python3 /rootvol/SComatic/scripts/GetCallableSites/GetAllCallableSites.py \\
+      --infile ${basecalling2} --outfile callableSites --max_cov 150 \\
+      --min_cell_types ${params.mincelltypes}
+  """
+}
+
+/*
+ * Step 7. Determine the callable sites per cell
+ */
+process uniqueCallableSites {
+  
+  input:
+  path basecalling1
+  path subbam
+  path subbai
+  
+  output:
+  path outtsv2
+
+  storeDir "${params.outdir}/UniqueCellCallableSites"
+  
+  when: params.cellsites==true
+  
+  script:
+  outtsv2 = subbam.name.replaceAll("bam","SitesPerCell.tsv")
+  ctn = subbam.name.tokenize(".")[1]
+  """
+  mkdir -p ${params.outdir}/UniqueCellCallableSites
+  mkdir -p ./${params.samplename}_${ctn}_tmp
+  python3 /rootvol/SComatic/scripts/SitesPerCell/SitesPerCell.py \\
+      --bam ${subbam} --infile ${basecalling1} --ref ${params.genome} \\
+      --out_folder ./ --tmp_dir ./${params.samplename}_${ctn}_tmp --nprocs ${params.cores}
+  """
+}
+
+/*
+ * Step 8. Get genotypes for each cell
+ */
+process cellGenotypes {
+  
+  input:
+  path basecalling2
+  path subbam
+  path subbai
+  
+  output:
+  path("${params.samplename}.${ctn}.single_cell_genotype.tsv")
+
+  storeDir "${params.outdir}/SingleCellAlleles"
+  
+  when: params.cellgenotypes==true
+  
+  script:
+  ctn = subbam.name.tokenize(".")[1]
+  """
+  mkdir -p ${params.outdir}/SingleCellAlleles
+  mkdir -p ./${params.samplename}_${ctn}_tmp
+  python /rootvol/SComatic/scripts/SingleCellGenotype/SingleCellGenotype.py \\
+      --bam ${subbam} --infile ${basecalling2} --nprocs ${params.cores} \\
+      --meta ${params.ct} --ref ${params.genome} --tmp_dir ./${params.samplename}_${ctn}_tmp \\
+      --outfile ${params.samplename}.${ctn}.single_cell_genotype.tsv \\
+  """
+}
+
+
+
+/*
+ * Execute workflow
+ */
+workflow {
+  starting()
+  splitBAM(params.bam, params.ct)
+  splitBAM.out[1].view()
+  baseCellCounts(splitBAM.out[1] | flatten, splitBAM.out[2] | flatten)
+  baseCellCounts.out[0].view()
+  //mergeCounts(baseCellCounts.out[0])
+  //baseCallStep1(mergeCounts.out[0])
+  //baseCallStep2(baseCallStep1.out[0])
+  //callableSites(baseCallStep2.out[0])
+  //uniqueCallableSites(baseCallStep1.out[0], splitBAM.out[1] | flatten, splitBAM.out[2] | flatten)
+  //cellGenotypes(baseCallStep2.out[0], splitBAM.out[1] | flatten, splitBAM.out[2] | flatten)
+}
+
+
+
+
+
