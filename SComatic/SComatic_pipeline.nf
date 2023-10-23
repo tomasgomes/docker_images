@@ -12,6 +12,7 @@ params.ct = false
 //params.ct = "ct_df.tsv"
 params.mincells = 4
 params.mincelltypes = 2
+params.maxcov = 150
 params.cores = 12
 params.cellsites = true
 params.cellgenotypes = true
@@ -116,7 +117,7 @@ process baseCallStep1 {
   path merged_tables
   
   output:
-  path basecalling1.calling.step1.tsv
+  path "basecalling1.calling.step1.tsv"
   
   storeDir "${params.outdir}"
   
@@ -137,15 +138,15 @@ process baseCallStep2 {
   path basecalling1
   
   output:
-  path basecalling2.calling.step2.tsv
+  path "basecalling2.calling.step2.tsv"
   
   storeDir "${params.outdir}"
   
   script:
   """
-  python3 /rootvol/SComatic/scripts/BaseCellCalling/BaseCellCalling.step2.py 
-      --infile ${basecalling1}
-      --outfile basecalling2 --editing /rootvol/SComatic/RNAediting/AllEditingSites.hg38.txt 
+  python3 /rootvol/SComatic/scripts/BaseCellCalling/BaseCellCalling.step2.py \\
+      --infile ${basecalling1} --outfile basecalling2 \\
+      --editing /rootvol/SComatic/RNAediting/AllEditingSites.hg38.txt \\
       --pon /rootvol/SComatic/PoNs/PoN.scRNAseq.hg38.tsv
   """
 }
@@ -159,14 +160,14 @@ process callableSites {
   file basecalling2
   
   output:
-  file callableSites.coverage_cell_count.report.tsv.gz
+  file "callableSites.coverage_cell_count.report.tsv"
   
   storeDir "${params.outdir}"
   
   script:
   """
   python3 /rootvol/SComatic/scripts/GetCallableSites/GetAllCallableSites.py \\
-      --infile ${basecalling2} --outfile callableSites --max_cov 150 \\
+      --infile ${basecalling2} --outfile callableSites --max_cov ${params.maxcov} \\
       --min_cell_types ${params.mincelltypes}
   """
 }
@@ -222,7 +223,7 @@ process cellGenotypes {
   """
   mkdir -p ${params.outdir}/SingleCellAlleles
   mkdir -p ./${params.samplename}_${ctn}_tmp
-  python /rootvol/SComatic/scripts/SingleCellGenotype/SingleCellGenotype.py \\
+  python3 /rootvol/SComatic/scripts/SingleCellGenotype/SingleCellGenotype.py \\
       --bam ${subbam} --infile ${basecalling2} --nprocs ${params.cores} \\
       --meta ${params.ct} --ref ${params.genome} --tmp_dir ./${params.samplename}_${ctn}_tmp \\
       --outfile ${params.samplename}.${ctn}.single_cell_genotype.tsv \\
@@ -239,13 +240,14 @@ workflow {
   splitBAM(params.bam, params.ct)
   splitBAM.out[1].view()
   baseCellCounts(splitBAM.out[1] | flatten, splitBAM.out[2] | flatten)
-  baseCellCounts.out[0].view()
-  //mergeCounts(baseCellCounts.out[0])
-  //baseCallStep1(mergeCounts.out[0])
-  //baseCallStep2(baseCallStep1.out[0])
-  //callableSites(baseCallStep2.out[0])
-  //uniqueCallableSites(baseCallStep1.out[0], splitBAM.out[1] | flatten, splitBAM.out[2] | flatten)
-  //cellGenotypes(baseCallStep2.out[0], splitBAM.out[1] | flatten, splitBAM.out[2] | flatten)
+  baseCellCounts.out.collect().view()
+  mergeCounts(baseCellCounts.out.collect())
+  mergeCounts.out.view()
+  baseCallStep1(mergeCounts.out)
+  baseCallStep2(baseCallStep1.out)
+  callableSites(baseCallStep2.out)
+  uniqueCallableSites(baseCallStep1.out, splitBAM.out[1] | flatten, splitBAM.out[2] | flatten)
+  cellGenotypes(baseCallStep2.out, splitBAM.out[1] | flatten, splitBAM.out[2] | flatten)
 }
 
 
