@@ -10,10 +10,17 @@ TODO:
 
 -   add support for velocity pipeline
 
+-   update to latest nextflow
+
 ## Build image
 
 ```{bash}
 docker build -t nextflow_kallisto_sc ./
+# before building, go to
+## https://www.10xgenomics.com/support/software/space-ranger/downloads
+## (or your preferred version) to get the download URL
+## and set the version accordingly
+docker build -t nextflow_kallisto_sc --build-arg SPACERANGER_VERSION="2.1.1" --build-arg DOWNLOAD_URL="https://cf.10xgenomics.com/releases/spatial-exp/spaceranger-2.1.1.tar.gz?Expires=1698957977&Key-Pair-Id=APKAI7S6A5RYOXBWRPDA&Signature=mlXpuDhn5JpA9afdYzp7Z79NstFSrZC3FfaEvQKCLYbJWdHEkx~rJTDZ8fRUaUtHQ32qttvN-idGoo2HIAGOA4aEqfElGBPLPiQ1s4rGe-8JqCIYeHivPvdxQYvqlSkarlpTmOz7N9-0iLvDp~EDVRrFNtDcCtJX4MUDU9pgsXMpWQYnU6SnS-1ovFKaanIVNKNX2zwk8gRDrvOBDqQibjUXDsX2afw54hgY7uF5fY-c5f8zmTcccPEflYQMZmPcSaweniQ00O~j3dy8X5H8eqlfb20z7RCa2z2A5uUanqhrEAPTQp42KIq6mPyQAd-L0fTW1eOyZoIWw2~SqPIdCA__" .
 ```
 
 ## Run

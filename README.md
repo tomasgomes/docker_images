@@ -37,8 +37,12 @@ docker push tomasgomes/nextflow_kallisto_sc:0.1
 
 ## TODO
 
+-   kallisto mapping
+ -   enable spaceranger
+ -   test/enable FFPE for spaceranger
+ -   enable RNA velocity quantification
+ -   update to latest Nextflow
 -   base interactive computational image
--   SComatic image
 -   SRA download image
 -   base jupyter/python image (based off of existing RStudio image)
 -   single-cell/spatial jupyter/python image (based off of existing RStudio image)

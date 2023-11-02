@@ -66,6 +66,16 @@ RUN R --no-echo --no-restore --no-save -e "install.packages(c('Seurat', 'Matrix'
 RUN R --no-echo --no-restore --no-save -e "install.packages('hdf5r')"
 
 
+# spaceranger
+ARG SPACERANGER_VERSION
+ARG DOWNLOAD_URL
+RUN wget -O spaceranger-${SPACERANGER_VERSION}.tar.gz ${DOWNLOAD_URL} \
+    && tar -xzf spaceranger-${SPACERANGER_VERSION}.tar.gz \
+    && rm -rf spaceranger-${SPACERANGER_VERSION}.tar.gz
+## add to path
+ENV PATH=$PATH:/opt/spaceranger-${SPACERANGER_VERSION}
+
+
 #nextflow
 WORKDIR /opt
 RUN apt-get update && apt-get install -y procps default-jre default-jdk
