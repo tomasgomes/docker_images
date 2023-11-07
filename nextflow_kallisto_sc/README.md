@@ -20,11 +20,21 @@ docker build -t nextflow_kallisto_sc ./
 ## https://www.10xgenomics.com/support/software/space-ranger/downloads
 ## (or your preferred version) to get the download URL
 ## and set the version accordingly
-docker build -t nextflow_kallisto_sc --build-arg SPACERANGER_VERSION="2.1.1" --build-arg DOWNLOAD_URL="https://cf.10xgenomics.com/releases/spatial-exp/spaceranger-2.1.1.tar.gz?Expires=1698957977&Key-Pair-Id=APKAI7S6A5RYOXBWRPDA&Signature=mlXpuDhn5JpA9afdYzp7Z79NstFSrZC3FfaEvQKCLYbJWdHEkx~rJTDZ8fRUaUtHQ32qttvN-idGoo2HIAGOA4aEqfElGBPLPiQ1s4rGe-8JqCIYeHivPvdxQYvqlSkarlpTmOz7N9-0iLvDp~EDVRrFNtDcCtJX4MUDU9pgsXMpWQYnU6SnS-1ovFKaanIVNKNX2zwk8gRDrvOBDqQibjUXDsX2afw54hgY7uF5fY-c5f8zmTcccPEflYQMZmPcSaweniQ00O~j3dy8X5H8eqlfb20z7RCa2z2A5uUanqhrEAPTQp42KIq6mPyQAd-L0fTW1eOyZoIWw2~SqPIdCA__" .
+docker build -t nextflow_kallisto_sc --build-arg SPACERANGER_VERSION="2.1.1" --build-arg DOWNLOAD_URL="https://cf.10xgenomics.com/releases/spatial-exp/spaceranger-2.1.1.tar.gz?Expires=1699385788&Key-Pair-Id=APKAI7S6A5RYOXBWRPDA&Signature=OSQP0ezQFhch7urKgPG2KKGD4m6QSgcw9kL9y~zxHXqYk8mM9NWh-i0bd~I5ok1NpY9Kwkm4ffG2uKywweLkWpNfWrdm3iTivww11wHU9Abs69lQvDAo3anNfRUwDOKewN2~wEGbs2S~moVGVtq49PwQ1WisBwEu7ScURcr3IVAs-xZeSdAJXc8GsJQOUL-e7JlK4BYiGTwIgjV4w2ZMwsMA3E6ln93dULdY3cU7WN5VzjBoz8O~2f2JNIBe4AAc6vhvia5irh375igiyP3SFiDgTTW0nO8FK1I4YcF~oNgm18FvCZ6HE7cSIHxvRFjAPG~Xxy6XGM7D1i22aDa5qg__" .
 ```
 
 ## Run
 
 ```{bash}
-docker run --rm -t -v $(pwd):/rootvol nextflow_kallisto_sc run projects/quantification_nextflow/kallisto_pipeline.nf --transcriptome data/references/human/human_Ens109_GRCh38p13.fa.gz --transindex human_Ens109_GRCh38p13.kalid --t2g data/references/human/human_Ens109_GRCh38p13_t2g.txt --white data/references/technical/737K-august-2016.txt --samplename "test" --outdir ./ --protocol sc5pe --reads "data/published/HC1/*.fastq.gz" --cores 2
+# 10xv3
+docker run --rm -t -v $(pwd):/rootvol nextflow_kallisto_sc run docker_images/nextflow_kallisto_sc/kallisto_pipeline.nf --transcriptome data/references/human/human_Ens109_GRCh38p13.fa.gz --transindex human_Ens109_GRCh38p13.kalid --t2g data/references/human/human_Ens109_GRCh38p13_t2g.txt --white data/references/technical/10xv3_whitelist.txt --samplename "test_10xv3" --outdir ./ --protocol 10xv3 --reads "test_datasets/10xv3/Brain_Tumor_3p_fastqs/*.fastq.gz" --cores 2
+
+# visium fresh-frozen
+
+
+#visium FFPE
+
+
+# sc5pe - OLD, TEST AGAIN
+docker run --rm -t -v $(pwd):/rootvol nextflow_kallisto_sc run docker_images/nextflow_kallisto_sc/kallisto_pipeline.nf --transcriptome data/references/human/human_Ens109_GRCh38p13.fa.gz --transindex human_Ens109_GRCh38p13.kalid --t2g data/references/human/human_Ens109_GRCh38p13_t2g.txt --white data/references/technical/737K-august-2016.txt --samplename "test" --outdir ./ --protocol sc5pe --reads "data/published/HC1/*.fastq.gz" --cores 2
 ```

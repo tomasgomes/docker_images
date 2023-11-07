@@ -74,10 +74,6 @@ RUN wget -O spaceranger-${SPACERANGER_VERSION}.tar.gz ${DOWNLOAD_URL} \
     && rm -rf spaceranger-${SPACERANGER_VERSION}.tar.gz
 ## add to path
 ENV PATH=$PATH:/opt/spaceranger-${SPACERANGER_VERSION}
-## download reference 
-RUN wget https://cf.10xgenomics.com/supp/spatial-exp/refdata-gex-GRCh38-2020-A.tar.gz \
-    && tar -xzf refdata-gex-GRCh38-2020-A.tar.gz \
-    && rm -rf refdata-gex-GRCh38-2020-A.tar.gz
 ## download the mock_fastq
 RUN wget -O mock_fastq.tar.gz https://github.com/tomasgomes/docker_images/raw/main/nextflow_kallisto_sc/mock_fastq.tar.gz \
     && tar -xzf mock_fastq.tar.gz \
@@ -88,7 +84,7 @@ RUN wget -O mock_fastq.tar.gz https://github.com/tomasgomes/docker_images/raw/ma
 WORKDIR /opt
 RUN apt-get update && apt-get install -y procps default-jre default-jdk
 ## only up to this version to work with kallisto_nextflow.nf pipeline
-##ENV NXF_VER=22.10.6
+ENV NXF_VER=22.10.6
 RUN wget -qO- https://get.nextflow.io | bash
 RUN chmod +x nextflow
 ## add nextflow to path
@@ -99,3 +95,4 @@ WORKDIR /
 VOLUME /rootvol
 WORKDIR /rootvol
 ENTRYPOINT ["nextflow"]
+
