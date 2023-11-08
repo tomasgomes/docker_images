@@ -25,4 +25,6 @@ docker run --rm -i -t -v $(pwd):/rootvol cellranger
 docker run --rm -t -v $(pwd):/rootvol cellranger count --id=HC1_CR \
 --fastqs=data/published/HC1 --sample=Hong2021_HC1 --localcores=2 \
 --transcriptome=data/references/human/refdata-gex-GRCh38-2020-A
+# make a reference
+docker run --rm -t -v $(pwd):/rootvol cellranger mkref --genome=eGFP --fasta=eGFP.fa --genes=eGFP.gtf
 ```

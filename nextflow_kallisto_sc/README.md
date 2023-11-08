@@ -20,7 +20,7 @@ docker build -t nextflow_kallisto_sc ./
 ## https://www.10xgenomics.com/support/software/space-ranger/downloads
 ## (or your preferred version) to get the download URL
 ## and set the version accordingly
-docker build -t nextflow_kallisto_sc --build-arg SPACERANGER_VERSION="2.1.1" --build-arg DOWNLOAD_URL="https://cf.10xgenomics.com/releases/spatial-exp/spaceranger-2.1.1.tar.gz?Expires=1699385788&Key-Pair-Id=APKAI7S6A5RYOXBWRPDA&Signature=OSQP0ezQFhch7urKgPG2KKGD4m6QSgcw9kL9y~zxHXqYk8mM9NWh-i0bd~I5ok1NpY9Kwkm4ffG2uKywweLkWpNfWrdm3iTivww11wHU9Abs69lQvDAo3anNfRUwDOKewN2~wEGbs2S~moVGVtq49PwQ1WisBwEu7ScURcr3IVAs-xZeSdAJXc8GsJQOUL-e7JlK4BYiGTwIgjV4w2ZMwsMA3E6ln93dULdY3cU7WN5VzjBoz8O~2f2JNIBe4AAc6vhvia5irh375igiyP3SFiDgTTW0nO8FK1I4YcF~oNgm18FvCZ6HE7cSIHxvRFjAPG~Xxy6XGM7D1i22aDa5qg__" .
+docker build -t nextflow_kallisto_sc --build-arg SPACERANGER_VERSION="2.1.1" --build-arg DOWNLOAD_URL="https://cf.10xgenomics.com/releases/spatial-exp/spaceranger-2.1.1.tar.gz?Expires=1699477452&Key-Pair-Id=APKAI7S6A5RYOXBWRPDA&Signature=VYvXIKsxFaG7waviCSQlE7ySLybjx7kA-lpG38l~umwcFYmPcmejxnIETDL3Hckgm6TIfQK9dfH5A1LvgBqTIHXkNCiIurVyzDAnkx0NHcJ3c63Gkb0-YWt0KZ8XtDXUnk8tgBbL-sAPYu1bhrJ3ET7D5UFT3VNd3I55MSZ00t0QBAA6iFK5jSpolwCVOBrOhoZOuPBwPB94jPXHoZPIH8HS2bbMCg85hNpYKEvtgmcEh269UUU~cwLZtHDYJMOKhye4i6JawYs4pFM28mOqSD2CPT~Uni~UH9EgssbhejG2qmQJE4rK~Fz3mjxnb1mODiJ~TwyrHMgqeGkqvlbniA__" .
 ```
 
 ## Run

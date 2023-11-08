@@ -69,15 +69,16 @@ RUN R --no-echo --no-restore --no-save -e "install.packages('hdf5r')"
 # spaceranger
 ARG SPACERANGER_VERSION
 ARG DOWNLOAD_URL
+## download reference 
+RUN wget -O refdata-gex-mm10-2020-A.tar.gz "https://cf.10xgenomics.com/supp/spatial-exp/refdata-gex-mm10-2020-A.tar.gz" \
+    && tar -xzf refdata-gex-mm10-2020-A.tar.gz \
+    && rm -rf refdata-gex-mm10-2020-A.tar.gz
+## download spaceranger
 RUN wget -O spaceranger-${SPACERANGER_VERSION}.tar.gz ${DOWNLOAD_URL} \
     && tar -xzf spaceranger-${SPACERANGER_VERSION}.tar.gz \
     && rm -rf spaceranger-${SPACERANGER_VERSION}.tar.gz
 ## add to path
 ENV PATH=$PATH:/opt/spaceranger-${SPACERANGER_VERSION}
-## download reference 
-RUN wget https://cf.10xgenomics.com/supp/spatial-exp/refdata-gex-GRCh38-2020-A.tar.gz \
-    && tar -xzf refdata-gex-GRCh38-2020-A.tar.gz \
-    && rm -rf refdata-gex-GRCh38-2020-A.tar.gz
 ## download the mock_fastq
 RUN wget -O mock_fastq.tar.gz https://github.com/tomasgomes/docker_images/raw/main/nextflow_kallisto_sc/mock_fastq.tar.gz \
     && tar -xzf mock_fastq.tar.gz \
