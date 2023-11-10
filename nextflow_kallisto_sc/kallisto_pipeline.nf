@@ -23,6 +23,8 @@ params.white = false //params.white = "/links/groups/treutlein/USERS/tomasgomes/
 params.t2g = false //params.t2g = "/links/groups/treutlein/USERS/tomasgomes/gene_refs/axolotl/Amex_T_v47/cDNA_transcripts/AmexT_v47_artificial_genenames_t2g.txt"
 params.imageal = false
 params.imagef = false
+params.imagear = false
+params.images = false
 params.cores = 12
 
 
@@ -305,6 +307,8 @@ process makeSeuratPlate {
     g = read.csv(paste0(topdir, "/transcripts.txt"), header = F, stringsAsFactors = F)
     dimnames(exp) = list(paste0(bc\$V1,"-1"),g\$V1) # number added because of seurat format for barcodes
     count.data = Matrix::t(exp)
+    rm(exp) # help with memory management 
+    gc()
 
     # summarise transcripts by gene name
     t2g = read.table("$t2g", header = F, stringsAsFactors = F, sep = "\t")
@@ -559,7 +563,7 @@ process getTissue {
     
     input:
     val imageal
-    path imagef
+    val imagef
     val imagear
     val images
 
@@ -711,7 +715,7 @@ workflow {
   makeSeuratPlate(pseudoalPlate.out, t2g_plate.collect())
   makeSeurat10x(countbus.out[0], countbus.out[1], countbus.out[2], umicounts.out)
   makeSeuratParse(countbus.out[0], countbus.out[1], countbus.out[2], umicounts.out)
-  getTissue(params.imageal, file(params.imagef), params.imagear, params.images)
+  getTissue(params.imageal, params.imagef, params.imagear, params.images)
   makeSeuratVisium(countbus.out[0], countbus.out[1], countbus.out[2], umicounts.out,
   getTissue.out[0])
 }
