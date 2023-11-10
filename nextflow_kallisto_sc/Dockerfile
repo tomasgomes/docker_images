@@ -70,9 +70,9 @@ RUN R --no-echo --no-restore --no-save -e "install.packages('hdf5r')"
 ARG SPACERANGER_VERSION
 ARG DOWNLOAD_URL
 ## download reference 
-RUN wget -O refdata-gex-mm10-2020-A.tar.gz "https://cf.10xgenomics.com/supp/spatial-exp/refdata-gex-mm10-2020-A.tar.gz" \
-    && tar -xzf refdata-gex-mm10-2020-A.tar.gz \
-    && rm -rf refdata-gex-mm10-2020-A.tar.gz
+RUN wget -O eGFP.tar.gz https://github.com/tomasgomes/docker_images/raw/main/nextflow_kallisto_sc/eGFP.tar.gz \
+    && tar -xzf eGFP.tar.gz \
+    && rm -rf eGFP.tar.gz
 ## download spaceranger
 RUN wget -O spaceranger-${SPACERANGER_VERSION}.tar.gz ${DOWNLOAD_URL} \
     && tar -xzf spaceranger-${SPACERANGER_VERSION}.tar.gz \

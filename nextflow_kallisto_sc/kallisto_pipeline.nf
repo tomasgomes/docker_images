@@ -105,7 +105,7 @@ process starting{
 process index {
 
     input:
-    val transcriptome_file
+    path transcriptome_file
 
     output:
     path("${params.transindex}")
@@ -294,7 +294,7 @@ process makeSeuratPlate {
 
     script:
     """
-    #!/usr/local/bin/Rscript --vanilla
+    #!Rscript --vanilla
 
     library(Seurat)
 
@@ -354,6 +354,7 @@ process makeSeurat10x {
 
     library(Seurat)
     library(DropletUtils)
+    library(data.table)
 
     # read in data
     topdir = "${params.samplename}" # source dir
@@ -362,6 +363,8 @@ process makeSeurat10x {
     g = read.csv("${outg}", header = F, stringsAsFactors = F)
     dimnames(exp) = list(paste0(bc\$V1,"-1"),g\$V1) # number added because of seurat format for barcodes
     count.data = Matrix::t(exp)
+    rm(exp) # help with memory management
+    gc()
 
     # get emptyDrops and default cutoff cell estimates
     iscell_dd = defaultDrops(count.data, expected = 5000)
@@ -384,7 +387,7 @@ process makeSeurat10x {
     dev.off()
 
     # UMI duplication
-    umi = read.table("${umic}", sep = "\t", header = F, stringsAsFactors = F)
+    umi = fread("${umic}", sep = "\t", header = F, stringsAsFactors = F)
     sumUMI = c()
     sumi = sum(umi\$V4)
     for(i in 0:250){ sumUMI = c(sumUMI, sum(umi\$V4[umi\$V4>i])/sumi) }
@@ -396,6 +399,8 @@ process makeSeurat10x {
     plot(diffUMI, ylim = c(0,0.2), pch = 20, col = "grey30", ylab = "Change in % of total reads",
          xlab = "More than xx UMI", main = "${params.samplename}")
     dev.off()
+    rm(umi) # help with memory management
+    gc()
 
     # create Seurat object
     ## we're only keeping what might potentially be a cell (by DD or ED)
@@ -441,11 +446,12 @@ process makeSeuratParse {
 
     script:
     """
-    #!/usr/local/bin/Rscript --vanilla
+    #!Rscript --vanilla
 
     library(Seurat)
     library(DropletUtils)
     library(DelayedArray)
+    library(data.table)
 
     # read in data
     topdir = "${params.samplename}" # source dir
@@ -506,7 +512,7 @@ process makeSeuratParse {
     meta = meta[,-1]
 
     # UMI duplication
-    #umi = read.table("${umic}", sep = "\t", header = F, stringsAsFactors = F)
+    #umi = fread("${umic}", sep = "\t", header = F, stringsAsFactors = F)
     #sumUMI = c()
     #sumi = sum(umi\$V4)
     #for(i in 0:250){ sumUMI = c(sumUMI, sum(umi\$V4[umi\$V4>i])/sumi) }
@@ -518,6 +524,8 @@ process makeSeuratParse {
     #plot(diffUMI, ylim = c(0,0.2), pch = 20, col = "grey30", ylab = "Change in % of total reads",
     #     xlab = "More than xx UMI", main = "${params.samplename}")
     #dev.off()
+    #rm(umi) # help with memory management
+    #gc()
 
     # create Seurat object
     ## we're only keeping what might potentially be a cell (by DD or ED)
@@ -548,30 +556,41 @@ process makeSeuratParse {
  * Step Tiss. Get tissue alignment and fiducials
  */
 process getTissue {
-    storeDir "${params.outdir}/${params.samplename}"
-
-    //input:
-    //file imageal from file(params.imageal)
-    //file imagef from file(params.imagef)
+    
+    input:
+    val imageal
+    path imagef
+    val imagear
+    val images
 
     output:
-    path "mock/outs/spatial/aligned_fiducials.jpg"
-    path "mock/outs/spatial/scalefactors_json.json"
-    path "mock/outs/spatial/tissue_lowres_image.png"
-    path "mock/outs/spatial/detected_tissue_image.jpg"
-    path "mock/outs/spatial/tissue_hires_image.png"
-    path "mock/outs/spatial/tissue_positions_list.csv"
+    path "${params.samplename}/outs/spatial"
+    //path "${params.samplename}/outs/spatial/aligned_fiducials.jpg"
+    //path "${params.samplename}/outs/spatial/scalefactors_json.json"
+    //path "${params.samplename}/outs/spatial/tissue_lowres_image.png"
+    //path "${params.samplename}/outs/spatial/detected_tissue_image.jpg"
+    //path "${params.samplename}/outs/spatial/tissue_hires_image.png"
+    //path "${params.samplename}/outs/spatial/tissue_positions.csv"
+    
+    storeDir "${params.outdir}/${params.samplename}"
 
     when: params.protocol=='visiumv1'
 
     script:
-    """
-    spaceranger count --id=mock --fastqs=./mock_fastq \\
-    --transcriptome=/links/groups/treutlein/USERS/tomasgomes/gene_refs/human/refdata-gex-GRCh38-2020-A --image=${params.imagef} --slide=${params.images} --area=${params.imagear} --loupe-alignment=${params.imageal} --localcores=4
-    """
+    if(!params.imageal)
+      """
+      spaceranger count --id=${params.samplename} --fastqs=/opt/mock_fastq \\
+      --transcriptome=/opt/eGFP --image=${imagef} --slide=${images} \\
+      --area=${imagear} --localcores=${params.cores}
+      """
+    else
+      """
+      spaceranger count --id=${params.samplename} --fastqs=/opt/mock_fastq \\
+      --transcriptome=/opt/eGFP --image=${imagef} --slide=${images} \\
+      --area=${imagear} --loupe-alignment=${imageal} --localcores=${params.cores}
+      """
 
 }
-
 
 /*
  * Step 5. Make Seurat object for Visium v1
@@ -583,6 +602,14 @@ process makeSeuratVisium {
     path outbc
     path outg
     path umic
+    // from getTissue
+    path spatial
+    //path fiducials
+    //path scalefactors
+    //path tissue_lowres
+    //path detected_tissue
+    //path tissue_hires
+    //path tissue_positions
 
     output:
     path "${params.samplename}_UMIrank.pdf"
@@ -595,18 +622,21 @@ process makeSeuratVisium {
 
     script:
     """
-    #!/usr/local/bin/Rscript --vanilla
+    #!Rscript --vanilla
 
     library(Seurat)
     library(DropletUtils)
+    library(data.table)
 
     # read in data
     topdir = "${params.samplename}" # source dir
     exp = Matrix::readMM("${outmtx}") #read matrix
-    bc = read.csv(paste0(topdir, "/genecounts.barcodes.txt"), header = F, stringsAsFactors = F)
-    g = read.csv(paste0(topdir, "/genecounts.genes.txt"), header = F, stringsAsFactors = F)
+    bc = read.csv("${outbc}", header = F, stringsAsFactors = F)
+    g = read.csv("${outg}", header = F, stringsAsFactors = F)
     dimnames(exp) = list(paste0(bc\$V1,"-1"),g\$V1) # number added because of seurat format for barcodes
     count.data = Matrix::t(exp)
+    rm(exp) # help with memory management
+    gc()
 
     # plot rankings for number of UMI
     br.out <- barcodeRanks(count.data)
@@ -621,7 +651,7 @@ process makeSeuratVisium {
     dev.off()
 
     # UMI duplication
-    umi = read.table("${umic}", sep = "\t", header = F, stringsAsFactors = F)
+    umi = fread("${umic}", sep = "\t", header = F, stringsAsFactors = F)
     sumUMI = c()
     sumi = sum(umi\$V4)
     for(i in 0:250){ sumUMI = c(sumUMI, sum(umi\$V4[umi\$V4>i])/sumi) }
@@ -633,10 +663,14 @@ process makeSeuratVisium {
     plot(diffUMI, ylim = c(0,0.2), pch = 20, col = "grey30", ylab = "Change in % of total reads",
          xlab = "More than xx UMI", main = "${params.samplename}")
     dev.off()
+    rm(umi) # help with memory management
+    gc()
 
     # create Seurat object
-    srat <- CreateSeuratObject(counts = count.data, assay = "Spatial") # create object
-    image <- Read10X_Image(image.dir = paste0(topdir, "/mock/outs/spatial/"),
+    srat <- CreateSeuratObject(counts = count.data, assay = "Spatial",
+                               meta.data = read.csv("${spatial}/tissue_positions.csv", 
+                                                    header = T, row.names = 1)) # create object
+    image <- Read10X_Image(image.dir = "${spatial}",
                            filter.matrix = FALSE) # read in the images
     image <- image[Cells(x = srat)] # filter image by the spots
     DefaultAssay(object = image) <- "Spatial" # set default assay
@@ -668,7 +702,7 @@ process makeSeuratVisium {
  */
 workflow {
   starting()
-  index(params.transcriptome)
+  index(file(params.transcriptome))
   pseudoalPlate(index.out, batch_kal.collect())
   pseudoal(index.out, read_files_kallisto.collect())
   corrsort(pseudoal.out[0], bc_wl_kal.collect())
@@ -677,7 +711,8 @@ workflow {
   makeSeuratPlate(pseudoalPlate.out, t2g_plate.collect())
   makeSeurat10x(countbus.out[0], countbus.out[1], countbus.out[2], umicounts.out)
   makeSeuratParse(countbus.out[0], countbus.out[1], countbus.out[2], umicounts.out)
-  //getTissue()
-  //makeSeuratVisium(countbus.out[0], countbus.out[1], countbus.out[2], umicounts.out)
+  getTissue(params.imageal, file(params.imagef), params.imagear, params.images)
+  makeSeuratVisium(countbus.out[0], countbus.out[1], countbus.out[2], umicounts.out,
+  getTissue.out[0])
 }
 
