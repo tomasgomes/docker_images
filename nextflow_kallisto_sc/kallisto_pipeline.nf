@@ -10,8 +10,8 @@
 
 /*
  * Defines necessary parameters
- * reads is used for path for fastq files, but also for the batch file for plate-based data
- * reads must be in the format *R1* and *R2*
+ * reads is used for path for fastq files, but also for the batch file for plate-based and bulk data
+ * reads must be in the format *R1.* and *R2.*
  */
 params.samplename = false //params.samplename = "GER006_10x"
 params.outdir = "./"
@@ -25,7 +25,7 @@ params.imageal = false
 params.imagef = false
 params.imagear = false
 params.images = false
-params.cores = 12
+params.cores = 1
 
 
 
@@ -58,7 +58,7 @@ R1files
     .flatten()
     //.view()
     .set{read_files_kallisto}
-if(params.protocol=='plate'){
+if(params.protocol=='batch'){
     Channel.fromPath(params.reads)
         .set{batch_kal}
 } else{ batch_kal = "" }
@@ -68,23 +68,19 @@ if(!params.samplename) exit 1, "Please provide a name for this sample"
 
 if(!params.protocol) exit 1, "Please provide an adequate protocol"
 
-if(!params.white && params.protocol!='plate'){
+if(!params.white && params.protocol!='batch'){
     exit 1, "Barcode whitelist is mandatory for Chromium, Visium, and ParseBio runs."
-} else if (params.protocol!='plate'){
-    Channel.fromPath(params.white)
-        .set{bc_wl_kal}
-} else{ bc_wl_kal = "" }
+}
+//} else if (params.protocol!='batch'){
+//    Channel.fromPath(params.white)
+//        .set{bc_wl_kal}
+//} else{ bc_wl_kal = "" }
 
-if(!params.t2g && params.protocol!='plate'){
+if(!params.t2g && params.protocol!='batch'){
     exit 1, "Transcriptome-to-gene reference is required for quantification."
-} else if(params.protocol!='plate'){
-    Channel.fromPath(params.t2g)
-        .set{t2g_kal}
-    t2g_plate = ""
 } else{
     Channel.fromPath(params.t2g)
-        .set{t2g_plate}
-    t2g_kal = ""
+        .set{t2g_kal}
 }
 
 if(file("${params.outdir}${params.samplename}").exists()) println "Output folder already exists. No files will be overwritten, but execution may fail."
@@ -122,27 +118,27 @@ process index {
 }
 
 /*
- * Step 2. Do pseudoalignment with kallisto for plate-based data
+ * Step 2. Do pseudoalignment with kallisto for batch data
  */
-process pseudoalPlate {
+process pseudoalBatch {
 
     input:
     path index
     path batchkal
 
     output:
-    path("${params.samplename}/matrix.abundance.mtx")
+    path "${params.samplename}/output.bus"
+    path "${params.samplename}/matrix.ec"
+    path "${params.samplename}/transcripts.txt"
     
     storeDir params.outdir
 
-    when: params.protocol=='plate'
+    when: params.protocol=='batch'
 
     script:
     """
-    kallisto pseudo -t ${params.cores} --quant \\
-        -i $index \\
-        -o ${params.samplename} \\
-        -b $batchkal
+    kallisto bus -t ${params.cores} -i $index -o ${params.samplename} \\
+        -B $batchkal
     """
 }
 
@@ -161,8 +157,8 @@ process pseudoal {
     path "${params.samplename}/transcripts.txt"
     
     storeDir params.outdir
-
-    when: params.protocol!='plate'
+    
+    when: params.protocol!='batch'
 
     script:
     if(params.protocol=='visiumv1')
@@ -183,14 +179,10 @@ process pseudoal {
             -t ${params.cores} \\
             $reads
         """
-    else if(params.protocol=='sc5pe')
+    else if(params.protocol=='batch')
         """
-        kallisto bus \\
-            -i $index \\
-            -o ${params.samplename} \\
-            -x 0,0,16:0,16,26:0,26,0,1,0,0 \\
-            -t 16 \\
-            $reads
+        kallisto bus -t ${params.cores} -i $index -o ${params.samplename} \\
+            -B $batchkal
         """
     else
         """
@@ -211,19 +203,25 @@ process corrsort {
 
     input:
     path outbus
-    path white
+    //path white
 
     output:
     path("${params.samplename}/output.cor.sort.bus")
     
     storeDir params.outdir
 
-    when: params.protocol!='plate'
+    //when: params.protocol!='batch'
 
     script:
+    if(params.protocol=='batch')
     """
     mkdir -p ${params.samplename}
-    bustools correct -w $white -o ${params.samplename}/output.cor.bus ${outbus}
+    bustools sort -o ${params.samplename}/output.cor.sort.bus -t ${params.cores} ${outbus}
+    """
+    else
+    """
+    mkdir -p ${params.samplename}
+    bustools correct -w ${params.white} -o ${params.samplename}/output.cor.bus ${outbus}
     bustools sort -o ${params.samplename}/output.cor.sort.bus -t ${params.cores} ${params.samplename}/output.cor.bus
     """
 }
@@ -241,7 +239,7 @@ process umicounts {
     
     storeDir params.outdir
 
-    when: params.protocol!='plate'
+    when: params.protocol!='batch'
 
     script:
     """
@@ -268,8 +266,6 @@ process countbus {
     
     storeDir params.outdir
 
-    when: params.protocol!='plate'
-
     script:
     """
     mkdir -p ${params.samplename}
@@ -284,15 +280,16 @@ process countbus {
 process makeSeuratPlate {
 
     input:
-    path outps
-    path t2g
+    path outmtx
+    path outbc
+    path outg
 
     output:
     path "${params.samplename}_srat.RDS"
     
     storeDir "${params.outdir}/${params.samplename}"
 
-    when: params.protocol=='plate'
+    when: params.protocol=='batch'
 
     script:
     """
@@ -302,20 +299,16 @@ process makeSeuratPlate {
 
     # read in data
     topdir = "${params.samplename}" # source dir
-    exp = Matrix::readMM("${outps}") #read matrix
-    bc = read.csv(paste0(topdir, "/matrix.cells"), header = F, stringsAsFactors = F)
-    g = read.csv(paste0(topdir, "/transcripts.txt"), header = F, stringsAsFactors = F)
+    exp = Matrix::readMM("${outmtx}") #read matrix
+    bc = read.csv("${outbc}", header = F, stringsAsFactors = F)
+    g = read.csv("${outg}", header = F, stringsAsFactors = F)
     dimnames(exp) = list(paste0(bc\$V1,"-1"),g\$V1) # number added because of seurat format for barcodes
     count.data = Matrix::t(exp)
-    rm(exp) # help with memory management 
+    rm(exp) # help with memory management
     gc()
 
-    # summarise transcripts by gene name
-    t2g = read.table("$t2g", header = F, stringsAsFactors = F, sep = "\t")
-    exp_gene = rowsum(as.matrix(count.data), t2g\$V2)
-
     # create Seurat object
-    srat = CreateSeuratObject(counts = exp_gene)
+    srat = CreateSeuratObject(counts = count.data)
 
     # get MT% (genes curated from NCBI chrMT genes)
     mtgenes = c("COX1", "COX2", "COX3", "ATP6", "ND1", "ND5", "CYTB", "ND2", "ND4",
@@ -707,12 +700,20 @@ process makeSeuratVisium {
 workflow {
   starting()
   index(file(params.transcriptome))
-  pseudoalPlate(index.out, batch_kal.collect())
+  pseudoalBatch(index.out, batch_kal.collect())
   pseudoal(index.out, read_files_kallisto.collect())
-  corrsort(pseudoal.out[0], bc_wl_kal.collect())
+  if(params.protocol=='batch'){
+    corrsort(pseudoalBatch.out[0])
+  } else{
+    corrsort(pseudoal.out[0])
+  }
   umicounts(corrsort.out)
-  countbus(corrsort.out, pseudoal.out[1], pseudoal.out[2], t2g_kal.collect())
-  makeSeuratPlate(pseudoalPlate.out, t2g_plate.collect())
+  if(params.protocol=='batch'){
+    countbus(corrsort.out, pseudoalBatch.out[1], pseudoalBatch.out[2], t2g_kal.collect())
+  } else{
+    countbus(corrsort.out, pseudoal.out[1], pseudoal.out[2], t2g_kal.collect())
+  }
+  makeSeuratPlate(countbus.out[0], countbus.out[1], countbus.out[2])
   makeSeurat10x(countbus.out[0], countbus.out[1], countbus.out[2], umicounts.out)
   makeSeuratParse(countbus.out[0], countbus.out[1], countbus.out[2], umicounts.out)
   getTissue(params.imageal, params.imagef, params.imagear, params.images)
