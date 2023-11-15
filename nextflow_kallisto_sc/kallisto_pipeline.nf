@@ -1,31 +1,40 @@
 /*
- * Example command:
+ * Example commands:
  *
- * nextflow run kallisto_pipeline.nf --transcriptome /links/groups/treutlein/USERS/tomasgomes/gene_refs/axolotl/Amex_T_v47/cDNA_transcripts/AmexT_v47_artificial.fa --transindex AmexT_v47_artificial.kalid --t2g /links/groups/treutlein/USERS/tomasgomes/gene_refs/axolotl/Amex_T_v47/cDNA_transcripts/AmexT_v47_artificial_genenames_t2g.txt --white /links/groups/treutlein/USERS/tomasgomes/gene_refs/other/10xv2_whitelist.txt --samplename "GER006_10x" --outdir /links/groups/treutlein/USERS/tomasgomes/data/axolotl/ --protocol 10xv2 --reads "/links/groups/treutlein/USERS/tomasgomes/projects/axolotl/data/raw/Gerber_all10x/GER006_10x/*.fastq.gz"
+ * nextflow run kallisto_pipeline.nf --transcriptome data/references/human/human_Ens109_GRCh38p13.fa.gz --transindex human_Ens109_GRCh38p13.kalid --t2g data/references/human/human_Ens109_GRCh38p13_t2g.txt --white data/references/technical/10xv3_whitelist.txt --samplename "test_10xv3" --outdir ./ --protocol 10xv3 --reads "test_datasets/10xv3/Brain_Tumor_3p_fastqs/*.fastq.gz" --cores 4
  *
- * nextflow run kallisto_pipeline.nf --transcriptome /links/groups/treutlein/USERS/tomasgomes/gene_refs/axolotl/Amex_T_v47/cDNA_transcripts/AmexT_v47_artificial.fa --transindex AmexT_v47_artificial.kalid --t2g /links/groups/treutlein/USERS/tomasgomes/gene_refs/axolotl/Amex_T_v47/cDNA_transcripts/AmexT_v47_artificial_genenames_t2g.txt --samplename "Gerber_plate" --outdir /links/groups/treutlein/USERS/tomasgomes/data/axolotl/ --protocol plate --reads /links/groups/treutlein/USERS/tomasgomes/projects/axolotl/data/raw/Gerber_allcells/kallisto_batch.txt
+ * nextflow run kallisto_pipeline.nf --transcriptome data/references/human/human_Ens109_GRCh38p13.fa.gz --transindex human_Ens109_GRCh38p13.kalid --t2g data/references/human/human_Ens109_GRCh38p13_t2g.txt --white data/references/technical/barcode_whitelists/visium-v1_whitelist_kallisto.txt --samplename "test_visium_FFPE" --outdir ./ --protocol visiumv1 --reads "test_datasets/visium_FFPE/Visium_FFPE_Human_Ovarian_Cancer_fastqs/*.fastq.gz" --images "V10L13-020" --imagear "D1" --imagef test_datasets/visium_FFPE/Visium_FFPE_Human_Ovarian_Cancer_image.jpeg --cores 2
  */
 
-// sc5pe taken from https://github.com/pachterlab/kallisto/issues/287
+// sc5pe definition taken from https://github.com/pachterlab/kallisto/issues/287
 
 /*
  * Defines necessary parameters
  * reads is used for path for fastq files, but also for the batch file for plate-based and bulk data
  * reads must be in the format *R1.* and *R2.*
  */
-params.samplename = false //params.samplename = "GER006_10x"
+// output parameters
+params.samplename = false
 params.outdir = "./"
-params.protocol = false //params.protocol = "10xv2"
-params.transcriptome = false //params.transcriptome = "/links/groups/treutlein/USERS/tomasgomes/gene_refs/axolotl/Amex_T_v47/cDNA_transcripts/AmexT_v47_artificial.fa"
-params.transindex = false //params.transindex = "AmexT_v47_artificial.kalid"
-params.reads = false //params.reads = "/links/groups/treutlein/USERS/tomasgomes/projects/axolotl/data/raw/Gerber_all10x/GER006_10x/*.fastq.gz"
-params.white = false //params.white = "/links/groups/treutlein/USERS/tomasgomes/gene_refs/other/10xv2_whitelist.txt"
-params.t2g = false //params.t2g = "/links/groups/treutlein/USERS/tomasgomes/gene_refs/axolotl/Amex_T_v47/cDNA_transcripts/AmexT_v47_artificial_genenames_t2g.txt"
+// transcriptome index parameters
+params.transcriptome = false
+params.transindex = false
+// processing parameters
+params.protocol = false 
+params.reads = false // all reads or batch file
+params.white = false 
+params.t2g = false
+params.cores = 1
+// Visium image parameters
 params.imageal = false
 params.imagef = false
 params.imagear = false
 params.images = false
-params.cores = 1
+// RNA velocity parameters
+params.velomode = false
+params.genome = false
+params.gtf = false
+params.overhang = 0 // intron overhangs should be the length of the biological read minus 1
 
 
 
@@ -68,26 +77,23 @@ if(!params.samplename) exit 1, "Please provide a name for this sample"
 
 if(!params.protocol) exit 1, "Please provide an adequate protocol"
 
-if(!params.white && params.protocol!='batch'){
+if(!params.white && (params.protocol!='batch' && params.protocol!='bulk_quant')){
     exit 1, "Barcode whitelist is mandatory for Chromium, Visium, and ParseBio runs."
 }
-//} else if (params.protocol!='batch'){
-//    Channel.fromPath(params.white)
-//        .set{bc_wl_kal}
-//} else{ bc_wl_kal = "" }
 
-if(!params.t2g && params.protocol!='batch'){
+if(!params.t2g){
     exit 1, "Transcriptome-to-gene reference is required for quantification."
 } else{
     Channel.fromPath(params.t2g)
         .set{t2g_kal}
 }
 
-if(file("${params.outdir}${params.samplename}").exists()) println "Output folder already exists. No files will be overwritten, but execution may fail."
+//if(file("${params.outdir}${params.samplename}").exists()) println "Output folder already exists. No files will be overwritten, but execution may fail."
+
 
 
 /*
- * Step 0. For some reason pseudoalignment doesn't work if it is the first step
+ * For some reason pseudoalignment doesn't work if it is the first step
  */
 process starting{
 
@@ -98,7 +104,7 @@ process starting{
 }
 
 /*
- * Step 1. Builds the transcriptome index, if it doesn't exist
+ * Builds the transcriptome index, if it doesn't exist
  */
 process index {
 
@@ -118,7 +124,7 @@ process index {
 }
 
 /*
- * Step 2. Do pseudoalignment with kallisto for batch data
+ * Do pseudoalignment with kallisto for batch data
  */
 process pseudoalBatch {
 
@@ -130,6 +136,7 @@ process pseudoalBatch {
     path "${params.samplename}/output.bus"
     path "${params.samplename}/matrix.ec"
     path "${params.samplename}/transcripts.txt"
+    path "${params.samplename}/run_info.json"
     
     storeDir params.outdir
 
@@ -138,12 +145,31 @@ process pseudoalBatch {
     script:
     """
     kallisto bus -t ${params.cores} -i $index -o ${params.samplename} \\
-        -B $batchkal
+        --batch-barcodes -B $batchkal
+    """
+}
+
+process bulk_quant {
+
+    input:
+    path index
+    path reads
+
+    output:
+    path "${params.samplename}"
+    
+    storeDir params.outdir
+
+    when: params.protocol=='bulk_quant'
+
+    script:
+    """
+    kallisto quant -t ${params.cores} -i $index -o ${params.samplename} ${reads}
     """
 }
 
 /*
- * Step 2. Do pseudoalignment with kallisto
+ * Do pseudoalignment with kallisto
  */
 process pseudoal {
   
@@ -155,10 +181,11 @@ process pseudoal {
     path "${params.samplename}/output.bus"
     path "${params.samplename}/matrix.ec"
     path "${params.samplename}/transcripts.txt"
+    path "${params.samplename}/run_info.json"
     
     storeDir params.outdir
     
-    when: params.protocol!='batch'
+    when: params.protocol!='batch' && params.protocol!='bulk_quant'
 
     script:
     if(params.protocol=='visiumv1')
@@ -179,11 +206,6 @@ process pseudoal {
             -t ${params.cores} \\
             $reads
         """
-    else if(params.protocol=='batch')
-        """
-        kallisto bus -t ${params.cores} -i $index -o ${params.samplename} \\
-            -B $batchkal
-        """
     else
         """
         kallisto bus \\
@@ -196,21 +218,21 @@ process pseudoal {
 }
 
 /*
- * Step 3. Correct barcodes and sort
+ * Correct barcodes and sort
  * A future version of kallisto may include options to correct the UMI
  */
 process corrsort {
 
     input:
     path outbus
-    //path white
+    path white
 
     output:
     path("${params.samplename}/output.cor.sort.bus")
     
     storeDir params.outdir
 
-    //when: params.protocol!='batch'
+    when: params.protocol!='bulk_quant'
 
     script:
     if(params.protocol=='batch')
@@ -221,13 +243,14 @@ process corrsort {
     else
     """
     mkdir -p ${params.samplename}
-    bustools correct -w ${params.white} -o ${params.samplename}/output.cor.bus ${outbus}
-    bustools sort -o ${params.samplename}/output.cor.sort.bus -t ${params.cores} ${params.samplename}/output.cor.bus
+    bustools correct -w ${white} -o ${params.samplename}/output.cor.bus ${outbus}
+    bustools sort -o ${params.samplename}/output.cor.sort.bus \\
+        -t ${params.cores} ${params.samplename}/output.cor.bus
     """
 }
 
 /*
- * Step 4a. Obtain the UMI read counts
+ * Obtain the UMI read counts
  */
 process umicounts {
 
@@ -235,21 +258,22 @@ process umicounts {
     path outbus
 
     output:
-    path "${params.samplename}/umicount.txt"
+    path "${params.samplename}/umicount.txt.gz"
     
     storeDir params.outdir
 
-    when: params.protocol!='batch'
+    when: params.protocol!='batch' && params.protocol!='bulk_quant'
 
     script:
     """
     mkdir -p ${params.samplename}
     bustools text -o ${params.samplename}/umicount.txt ${outbus}
+    gzip ${params.samplename}/umicount.txt
     """
 }
 
 /*
- * Step 4b. Obtain the counts
+ * Obtain the counts
  */
 process countbus {
   
@@ -263,8 +287,10 @@ process countbus {
     path "${params.samplename}/genecounts.mtx"
     path "${params.samplename}/genecounts.barcodes.txt"
     path "${params.samplename}/genecounts.genes.txt"
-    
+
     storeDir params.outdir
+    
+    when: params.protocol!='bulk_quant'
 
     script:
     """
@@ -275,7 +301,7 @@ process countbus {
 }
 
 /*
- * Step 5. Make Seurat object for plate
+ * Make Seurat object for plate
  */
 process makeSeuratPlate {
 
@@ -289,7 +315,7 @@ process makeSeuratPlate {
     
     storeDir "${params.outdir}/${params.samplename}"
 
-    when: params.protocol=='batch'
+    when: params.protocol=='batch' && params.protocol!='bulk_quant'
 
     script:
     """
@@ -326,7 +352,7 @@ process makeSeuratPlate {
 }
 
 /*
- * Step 5. Make Seurat object for 10x
+ * Make Seurat object for 10x
  */
 process makeSeurat10x {
 
@@ -423,7 +449,7 @@ process makeSeurat10x {
 }
 
 /*
- * Step 5. Make Seurat object for ParseBio
+ * Make Seurat object for ParseBio
  */
 process makeSeuratParse {
 
@@ -550,7 +576,7 @@ process makeSeuratParse {
 }
 
 /*
- * Step Tiss. Get tissue alignment and fiducials
+ * Get tissue alignment and fiducials
  */
 process getTissue {
     
@@ -590,7 +616,7 @@ process getTissue {
 }
 
 /*
- * Step 5. Make Seurat object for Visium v1
+ * Make Seurat object for Visium v1
  */
 process makeSeuratVisium {
 
@@ -693,31 +719,118 @@ process makeSeuratVisium {
 }
 
 
+/*
+ * RNA VELOCITY PROCESSES
+ */
+/*
+ * Extract Introns and Exons from genome and GTF
+ */
+process getInEx {
+    input:
+    
+    
+    output:
+    
+    script:
+    """
+    
+    """
+}
+/*
+ * Subset introns and exons
+ */
+process captureInEx {
+
+    input:
+    path outbus // corrsort.out
+    path matrix // pseudoal.out[1]
+    path transcripts // pseudoal.out[2]
+    path intronsfile
+    path exonsfile
+    // don't forget this works with complement sets!
+    // https://bustools.github.io/BUS_notebooks_R/velocity.html
+
+    output:
+    path "${params.samplename}/spliced.bus"
+    path "${params.samplename}/unspliced.bus"
+    
+    storeDir params.outdir
+
+    script:
+    """
+    bustools capture -s -x -o ${params.samplename}/spliced.bus -c $intronsfile \\
+        -e ${matrix} -t ${transcripts} ${outbus}
+    bustools capture -s -x -o ${params.samplename}/unspliced.bus -c $exonsfile \\
+        -e ${matrix} -t ${transcripts} ${outbus}
+    """
+}
+/*
+ * Count introns and exons
+ */
+process countInEx {
+    input:
+    
+    
+    output:
+    
+    script:
+    """
+    
+    """
+}
+/*
+ * Process introns and exons
+ */
+process processInEx {
+    input:
+    
+    
+    output:
+    
+    script:
+    """
+    
+    """
+}
+
+
 
 /*
  * Execute workflow
  */
 workflow {
   starting()
+  // indexing
   index(file(params.transcriptome))
-  pseudoalBatch(index.out, batch_kal.collect())
-  pseudoal(index.out, read_files_kallisto.collect())
-  if(params.protocol=='batch'){
-    corrsort(pseudoalBatch.out[0])
+  if(params.protocol=='bulk_quant'){
+    bulk_quant(index.out, read_files_kallisto.collect())
   } else{
-    corrsort(pseudoal.out[0])
+    // pseudoalignment
+    pseudoalBatch(index.out, batch_kal.collect())
+    pseudoal(index.out, read_files_kallisto.collect())
+    // sorting and barcode corrections
+    if(params.protocol=='batch'){
+      corrsort(pseudoalBatch.out[0], pseudoalBatch.out[1])
+      // pseudoalBatch.out[1] only serves as placeholder
+    } else{
+      corrsort(pseudoal.out[0], file(params.white))
+    }
+    // umi counts
+    umicounts(corrsort.out)
+    // counts per gene
+    if(params.protocol=='batch'){
+      countbus(corrsort.out, pseudoalBatch.out[1], pseudoalBatch.out[2], t2g_kal.collect())
+    } else{
+      countbus(corrsort.out, pseudoal.out[1], pseudoal.out[2], t2g_kal.collect())
+    }
+    // tissue image
+    getTissue(params.imageal, params.imagef, params.imagear, params.images)
+    // make Seurat
+    makeSeuratPlate(countbus.out[0], countbus.out[1], countbus.out[2])
+    makeSeurat10x(countbus.out[0], countbus.out[1], countbus.out[2], umicounts.out)
+    makeSeuratParse(countbus.out[0], countbus.out[1], countbus.out[2], umicounts.out)
+    makeSeuratVisium(countbus.out[0], countbus.out[1], countbus.out[2], umicounts.out,
+    getTissue.out[0])
   }
-  umicounts(corrsort.out)
-  if(params.protocol=='batch'){
-    countbus(corrsort.out, pseudoalBatch.out[1], pseudoalBatch.out[2], t2g_kal.collect())
-  } else{
-    countbus(corrsort.out, pseudoal.out[1], pseudoal.out[2], t2g_kal.collect())
-  }
-  makeSeuratPlate(countbus.out[0], countbus.out[1], countbus.out[2])
-  makeSeurat10x(countbus.out[0], countbus.out[1], countbus.out[2], umicounts.out)
-  makeSeuratParse(countbus.out[0], countbus.out[1], countbus.out[2], umicounts.out)
-  getTissue(params.imageal, params.imagef, params.imagear, params.images)
-  makeSeuratVisium(countbus.out[0], countbus.out[1], countbus.out[2], umicounts.out,
-  getTissue.out[0])
 }
 
