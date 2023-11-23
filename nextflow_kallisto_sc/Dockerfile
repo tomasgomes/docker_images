@@ -63,7 +63,39 @@ RUN apt-get update && apt-get install -y --no-install-recommends libopenblas0-pt
 RUN R --no-echo --no-restore --no-save -e "install.packages('BiocManager')"
 RUN R --no-echo --no-restore --no-save -e "BiocManager::install(c('multtest', 'S4Vectors', 'SummarizedExperiment', 'SingleCellExperiment', 'BiocGenerics', 'GenomicRanges', 'IRanges', 'rtracklayer', 'DropletUtils', 'Biobase', 'DelayedArray'))"
 RUN R --no-echo --no-restore --no-save -e "install.packages(c('Seurat', 'Matrix'))"
-RUN R --no-echo --no-restore --no-save -e "install.packages('hdf5r')"
+RUN R --no-echo --no-restore --no-save -e "install.packages(c('hdf5r', 'remotes'))"
+RUN R --no-echo --no-restore --no-save -e "BiocManager::install('rtracklayer')"
+RUN R --no-echo --no-restore --no-save -e "remotes::install_github('asrinivasan-oa/gread')"
+
+
+#nextflow
+WORKDIR /opt
+RUN apt-get update && apt-get install -y procps default-jre default-jdk
+## only up to this version to work with kallisto_nextflow.nf pipeline
+##ENV NXF_VER=22.10.6
+RUN wget -qO- https://get.nextflow.io | bash
+RUN chmod +x nextflow
+## add nextflow to path
+ENV PATH=$PATH:/opt
+
+
+# gffread
+RUN git clone https://github.com/gpertea/gffread
+WORKDIR gffread
+RUN make release
+ENV PATH=$PATH:/opt/gffread
+WORKDIR /opt
+
+
+# samtools
+RUN apt-get install -y libbz2-dev zlib1g-dev libncurses5-dev libncursesw5-dev liblzma-dev
+RUN wget https://github.com/samtools/samtools/releases/download/1.18/samtools-1.18.tar.bz2 \
+    && tar -vxjf samtools-1.18.tar.bz2
+WORKDIR samtools-1.18
+RUN ./configure --prefix=/opt/samtools
+RUN make && make install
+ENV PATH=$PATH:/opt/samtools/bin
+WORKDIR /opt
 
 
 # spaceranger
@@ -83,17 +115,6 @@ ENV PATH=$PATH:/opt/spaceranger-${SPACERANGER_VERSION}
 RUN wget -O mock_fastq.tar.gz https://github.com/tomasgomes/docker_images/raw/main/nextflow_kallisto_sc/mock_fastq.tar.gz \
     && tar -xzf mock_fastq.tar.gz \
     && rm -rf mock_fastq.tar.gz
-
-
-#nextflow
-WORKDIR /opt
-RUN apt-get update && apt-get install -y procps default-jre default-jdk
-## only up to this version to work with kallisto_nextflow.nf pipeline
-##ENV NXF_VER=22.10.6
-RUN wget -qO- https://get.nextflow.io | bash
-RUN chmod +x nextflow
-## add nextflow to path
-ENV PATH=$PATH:/opt
 
 
 WORKDIR /

@@ -37,7 +37,7 @@ params.gtf = false
 params.overhang = 0 // intron overhangs should be the length of the biological read minus 1
 
 
-
+if(false){
 /*
  * Input parameters validation and preparation
  */
@@ -87,8 +87,9 @@ if(!params.t2g){
     Channel.fromPath(params.t2g)
         .set{t2g_kal}
 }
-
-//if(file("${params.outdir}${params.samplename}").exists()) println "Output folder already exists. No files will be overwritten, but execution may fail."
+}
+//----- RNA VELOCITY -----//
+gtffname = file(params.gtf)["baseName"].replaceFirst(/.gtf/, "")
 
 
 
@@ -149,6 +150,9 @@ process pseudoalBatch {
     """
 }
 
+/*
+ * Do pseudoalignment with kallisto for bulk data, one dataset
+ */
 process bulk_quant {
 
     input:
@@ -722,20 +726,96 @@ process makeSeuratVisium {
 /*
  * RNA VELOCITY PROCESSES
  */
+// parameters (defined above)
+// params.velomode = false
+// params.genome = false
+// params.gtf = false
+// params.overhang = 0
 /*
  * Extract Introns and Exons from genome and GTF
  */
-process getInEx {
+process getIntronCoord {
+  
     input:
-    
+    path gtf
+    val overhang
     
     output:
+    path "${gtffname}_introns.gtf"
+    path "${gtffname}_intronsPlus${overhang}.gtf"
+    
+    storeDir file(params.gtf).getParent()
+    
+    when: params.velomode
     
     script:
     """
+    #!Rscript --vanilla
     
+    library(gread)
+    library(rtracklayer)
+    
+    gtf = read_format("${gtf}")
+    ans = construct_introns(gtf, update=F)[]
+    ans = sort(ans)
+    ans\$transcript_id = paste0(ans\$transcript_id, ".I", 1:length(ans))
+    
+    ans_plus = ans+${overhang}
+    start(ans_plus)[start(ans_plus)<1] = 1
+    
+    export(ans, paste0("${gtffname}", "_introns.gtf"))
+    export(ans_plus, paste0("${gtffname}", "_intronsPlus", ${overhang}, ".gtf"))
     """
 }
+
+/*
+ * Make a reference consisting of cDNA transcripts and introns
+ */
+process intronTranscriptRef {
+    input:
+    path gtf
+    path genome
+    path transcriptome
+    
+    output:
+    path "${gtffname}_intronsPlus${params.overhang}_corr.gtf"
+    path "${genome}.fai"
+    path "${gtffname}_intronsPlus${params.overhang}_corr.fa"
+    path "transcriptome_and_intronsPlus${params.overhang}_corr.fa"
+    
+    storeDir file(params.genome).getParent()
+    
+    when: params.velomode
+    
+    script:
+    """
+    sed 's/sequence_feature/exon/g' ${gtf} | sed 's/intron/exon/g' - > ${gtffname}_intronsPlus${params.overhang}_corr.gtf
+    samtools faidx ${genome}
+    gffread -g ${genome} -w ${gtffname}_intronsPlus${params.overhang}_corr.fa ${gtffname}_intronsPlus${params.overhang}_corr.gtf
+    gzip -cd ${transcriptome} | cat - ${gtffname}_intronsPlus${params.overhang}_corr.fa > transcriptome_and_intronsPlus${params.overhang}_corr.fa
+    """
+}
+
+/*
+ * Builds the transcriptome index for introns and exons
+ */
+process indexInEx {
+
+    input:
+    path transcriptome_introns
+
+    output:
+    path "transcriptome_and_intronsPlus${params.overhang}_corr.kalid"
+    
+    storeDir file(params.genome).getParent()
+
+    script:
+    """
+    kallisto index -i transcriptome_and_intronsPlus${params.overhang}_corr.kalid \\
+        -k 31 --make-unique ${transcriptome_introns}
+    """
+}
+
 /*
  * Subset introns and exons
  */
@@ -755,6 +835,8 @@ process captureInEx {
     path "${params.samplename}/unspliced.bus"
     
     storeDir params.outdir
+    
+    when: params.velomode
 
     script:
     """
@@ -764,6 +846,7 @@ process captureInEx {
         -e ${matrix} -t ${transcripts} ${outbus}
     """
 }
+
 /*
  * Count introns and exons
  */
@@ -772,12 +855,17 @@ process countInEx {
     
     
     output:
+        
+    storeDir params.outdir
+    
+    when: params.velomode
     
     script:
     """
     
     """
 }
+
 /*
  * Process introns and exons
  */
@@ -786,7 +874,11 @@ process processInEx {
     
     
     output:
+        
+    storeDir params.outdir
     
+    when: params.velomode
+
     script:
     """
     
@@ -800,37 +892,44 @@ process processInEx {
  */
 workflow {
   starting()
-  // indexing
-  index(file(params.transcriptome))
-  if(params.protocol=='bulk_quant'){
-    bulk_quant(index.out, read_files_kallisto.collect())
+  if(!params.velomode){
+    // indexing
+    index(file(params.transcriptome))
+    if(params.protocol=='bulk_quant'){
+      bulk_quant(index.out, read_files_kallisto.collect())
+    } else{
+      // pseudoalignment
+      pseudoalBatch(index.out, batch_kal.collect())
+      pseudoal(index.out, read_files_kallisto.collect())
+      // sorting and barcode corrections
+      if(params.protocol=='batch'){
+        corrsort(pseudoalBatch.out[0], pseudoalBatch.out[1])
+        // pseudoalBatch.out[1] only serves as placeholder
+      } else{
+        corrsort(pseudoal.out[0], file(params.white))
+      }
+      // umi counts
+      umicounts(corrsort.out)
+      // counts per gene
+      if(params.protocol=='batch'){
+        countbus(corrsort.out, pseudoalBatch.out[1], pseudoalBatch.out[2], t2g_kal.collect())
+      } else{
+        countbus(corrsort.out, pseudoal.out[1], pseudoal.out[2], t2g_kal.collect())
+      }
+      // tissue image
+      getTissue(params.imageal, params.imagef, params.imagear, params.images)
+      // make Seurat
+      makeSeuratPlate(countbus.out[0], countbus.out[1], countbus.out[2])
+      makeSeurat10x(countbus.out[0], countbus.out[1], countbus.out[2], umicounts.out)
+      makeSeuratParse(countbus.out[0], countbus.out[1], countbus.out[2], umicounts.out)
+      makeSeuratVisium(countbus.out[0], countbus.out[1], countbus.out[2], umicounts.out,
+      getTissue.out[0])
+    }
   } else{
-    // pseudoalignment
-    pseudoalBatch(index.out, batch_kal.collect())
-    pseudoal(index.out, read_files_kallisto.collect())
-    // sorting and barcode corrections
-    if(params.protocol=='batch'){
-      corrsort(pseudoalBatch.out[0], pseudoalBatch.out[1])
-      // pseudoalBatch.out[1] only serves as placeholder
-    } else{
-      corrsort(pseudoal.out[0], file(params.white))
-    }
-    // umi counts
-    umicounts(corrsort.out)
-    // counts per gene
-    if(params.protocol=='batch'){
-      countbus(corrsort.out, pseudoalBatch.out[1], pseudoalBatch.out[2], t2g_kal.collect())
-    } else{
-      countbus(corrsort.out, pseudoal.out[1], pseudoal.out[2], t2g_kal.collect())
-    }
-    // tissue image
-    getTissue(params.imageal, params.imagef, params.imagear, params.images)
-    // make Seurat
-    makeSeuratPlate(countbus.out[0], countbus.out[1], countbus.out[2])
-    makeSeurat10x(countbus.out[0], countbus.out[1], countbus.out[2], umicounts.out)
-    makeSeuratParse(countbus.out[0], countbus.out[1], countbus.out[2], umicounts.out)
-    makeSeuratVisium(countbus.out[0], countbus.out[1], countbus.out[2], umicounts.out,
-    getTissue.out[0])
+    getIntronCoord(file(params.gtf), params.overhang)
+    intronTranscriptRef(getIntronCoord.out[1], file(params.genome), file(params.transcriptome))
+    indexInEx(intronTranscriptRef.out[3])
   }
 }
+
 

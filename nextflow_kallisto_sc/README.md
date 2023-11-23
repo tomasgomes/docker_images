@@ -18,7 +18,7 @@ docker build -t nextflow_kallisto_sc ./
 ## https://www.10xgenomics.com/support/software/space-ranger/downloads
 ## (or your preferred version) to get the download URL
 ## and set the version accordingly
-docker build -t nextflfastqow_kallisto_sc --build-arg SPACERANGER_VERSION="2.1.1" --build-arg DOWNLOAD_URL="https://cf.10xgenomics.com/releases/spatial-exp/spaceranger-2.1.1.tar.gz?Expires=1699486620&Key-Pair-Id=APKAI7S6A5RYOXBWRPDA&Signature=jDawHr8CO2oP7PDTQ4lY7DIy0Yg0-zNLjK-A66HHWVV~XTeVgS3yBThBRnYqoWy1zvlzGKjMKaKu2rUuPVf4Au~kIsbuJIt8r8dfwBfA41PMnx9QtjKt9WWPJkiNDhLxJvh9s8XfwE0l0aJgGETtd6scLLjpAMKpW6Vp8DJDeqOkEIaeB9P2TZRjiFH0Qz3Sl9PDF-VIaQONzl79GPDWQBW6OcoDPKKzz2-d3q8JTnICL3yTjm1C5H4H7pJaZYqZYxFD8DyIJbRoJAH-0zhqN7gYldvrfB0NwuNnsZy0gcpu5KL3fHTxKRS-UrxP5wN1ycb0mdM-RXl8xXJEEY6edw__" .
+docker build -t nextflow_kallisto_sc --build-arg SPACERANGER_VERSION="2.1.1" --build-arg DOWNLOAD_URL="https://cf.10xgenomics.com/releases/spatial-exp/spaceranger-2.1.1.tar.gz?Expires=1700166299&Key-Pair-Id=APKAI7S6A5RYOXBWRPDA&Signature=bnKLW16EhQ3IOGxf5jIFp9kuc9lgsF4fBFWX8R0-neFe34FPLEErTMyrBTNFHClBwDkwH96hL1lNTc67Ig4M6Bdkmkp5isAKfIHpOGYZ8RzQU-b4YSSEn4xaBG1r-u7uaQUBjrKjuUGwcueGyRJ22XSaHlAeTA-85RvH5yajJYCp9socvGnQDUyTEEtG~s8AjnwNyeHhd2jM2YsRFAIKG9lYqD0OjhFC7Hp98efP0AsfBdKwmGWY9xlCOLwEyW4um7~1b9jKAOHprqIXcmUPl61fXoh-NplytIg-O5K9goGUitRy~JSDX-ZR6RX~UMD7LvBxJBJZn11JNy-7Q-34xw__" .
 ```
 
 ## Run
@@ -45,6 +45,9 @@ docker run --rm -t -v $(pwd):/rootvol nextflow_kallisto_sc run docker_images/nex
 # SS2 - HAS NOT PASSED TESTING
 ## REQUIRES ABSOLUTE PATH IN BATCH FILE (/rootvol/...)
 docker run --rm -t -v $(pwd):/rootvol nextflow_kallisto_sc run docker_images/nextflow_kallisto_sc/kallisto_pipeline.nf --transcriptome data/references/human/human_Ens109_GRCh38p13.fa.gz --transindex human_Ens109_GRCh38p13.kalid --t2g data/references/human/human_Ens109_GRCh38p13_t2g.txt --samplename "test_plate" --outdir ./ --protocol batch --cores 4 --reads "./test_datasets/SS2/kallisto_batch.txt"
+
+# RNA velocity
+docker run --rm -t -v $(pwd):/rootvol nextflow_kallisto_sc run docker_images/nextflow_kallisto_sc/kallisto_pipeline.nf --transcriptome data/references/human/human_Ens109_GRCh38p13.fa.gz --velomode true --genome data/references/human/genome/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz --gtf data/references/human/genome/Homo_sapiens.GRCh38.110.gtf.gz --overhang 100
 ```
 
 
