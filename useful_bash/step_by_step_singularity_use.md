@@ -16,3 +16,6 @@ singularity run --mount type=bind,src=$(pwd),dst=/rootvol /mnt/beegfs/singularit
 
 # running the above command with sbatch
 sbatch example_sbatch_script.sh
+
+# which is equivalent to the following (except this will leave the terminal unusable)
+srun --job-name=test_wrapper --time=0:01:20 --ntasks=1 --mem=100M --cpus-per-task=1 --nodelist=compute-1 -o outfile.txt -e errfile.txt singularity run --mount type=bind,src=$(pwd),dst=/rootvol /mnt/beegfs/singularity/images/nextflow_kallisto_sc.sif run /rootvol/kallisto_pipeline.nf ...

@@ -47,7 +47,7 @@ docker run --rm -t -v $(pwd):/rootvol nextflow_kallisto_sc run docker_images/nex
 docker run --rm -t -v $(pwd):/rootvol nextflow_kallisto_sc run docker_images/nextflow_kallisto_sc/kallisto_pipeline.nf --transcriptome data/references/human/human_Ens109_GRCh38p13.fa.gz --transindex human_Ens109_GRCh38p13.kalid --t2g data/references/human/human_Ens109_GRCh38p13_t2g.txt --samplename "test_plate" --outdir ./ --protocol batch --cores 4 --reads "./test_datasets/SS2/kallisto_batch.txt"
 
 # RNA velocity
-docker run --rm -t -v $(pwd):/rootvol nextflow_kallisto_sc run docker_images/nextflow_kallisto_sc/kallisto_pipeline.nf --transcriptome data/references/human/human_Ens109_GRCh38p13.fa.gz --velomode true --genome data/references/human/genome/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz --gtf data/references/human/genome/Homo_sapiens.GRCh38.110.gtf.gz --overhang 100
+docker run --rm -t -v $(pwd):/rootvol nextflow_kallisto_sc run docker_images/nextflow_kallisto_sc/kallisto_pipeline.nf --transcriptome data/references/human/human_Ens109_GRCh38p13.fa.gz --velomode true --genome data/references/human/genome/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz --gtf data/references/human/genome/Homo_sapiens.GRCh38.110.gtf.gz --overhang 100 --cores 4
 ```
 
 

@@ -120,7 +120,7 @@ process index {
     script:
     """
     echo Transcriptome index will be stored in the parent directory of the reference.
-    kallisto index -i ${params.transindex} -k 31 --make-unique ${transcriptome_file}
+    kallisto index -i ${params.transindex} -k 31 -t ${params.cores} --make-unique ${transcriptome_file}
     """
 }
 
@@ -812,7 +812,7 @@ process indexInEx {
     script:
     """
     kallisto index -i transcriptome_and_intronsPlus${params.overhang}_corr.kalid \\
-        -k 31 --make-unique ${transcriptome_introns}
+        -k 31 -t ${params.cores} --make-unique ${transcriptome_introns}
     """
 }
 
