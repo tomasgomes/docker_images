@@ -4,9 +4,23 @@ This image is used to run a kallisto-bustools nextflow pipeline. The entrypoint 
 
 TODO:
 
--   test in Lobo
-
 -   add support for velocity pipeline
+
+    -   add t2g file generation
+    
+    -   this should run both the normal and velocity pipeline
+  
+-   fix MT genes
+
+-   add scanpy option
+
+    -   need to do emptyDrops first and save results independently
+  
+    -   option for creating scanpy (Seurat should always run as default)
+  
+    -   scvelo setup for RNA velocity
+  
+    -   account for spatial as well
 
 -   add bustools umicorrect
 
@@ -47,7 +61,8 @@ docker run --rm -t -v $(pwd):/rootvol nextflow_kallisto_sc run docker_images/nex
 docker run --rm -t -v $(pwd):/rootvol nextflow_kallisto_sc run docker_images/nextflow_kallisto_sc/kallisto_pipeline.nf --transcriptome data/references/human/human_Ens109_GRCh38p13.fa.gz --transindex human_Ens109_GRCh38p13.kalid --t2g data/references/human/human_Ens109_GRCh38p13_t2g.txt --samplename "test_plate" --outdir ./ --protocol batch --cores 4 --reads "./test_datasets/SS2/kallisto_batch.txt"
 
 # RNA velocity
-docker run --rm -t -v $(pwd):/rootvol nextflow_kallisto_sc run docker_images/nextflow_kallisto_sc/kallisto_pipeline.nf --transcriptome data/references/human/human_Ens109_GRCh38p13.fa.gz --velomode true --genome data/references/human/genome/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz --gtf data/references/human/genome/Homo_sapiens.GRCh38.110.gtf.gz --overhang 100 --cores 4
+## if the genome ends in .fa.gz, the index must be .fa.gz.fai (but not gzipped!)
+docker run --rm -t -v $(pwd):/rootvol nextflow_kallisto_sc run docker_images/nextflow_kallisto_sc/kallisto_pipeline.nf --transcriptome data/references/human/human_Ens109_GRCh38p13.fa.gz --velomode true --genome data/references/human/genome/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz --gtf data/references/human/genome/Homo_sapiens.GRCh38.110.gtf.gz --overhang 100 --cores 4 --white data/references/technical/10xv3_whitelist.txt --protocol 10xv3 --reads "test_datasets/10xv3/Brain_Tumor_3p_fastqs/*.fastq.gz"
 ```
 
 

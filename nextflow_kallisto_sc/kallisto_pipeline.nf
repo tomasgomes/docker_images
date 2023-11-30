@@ -37,15 +37,17 @@ params.gtf = false
 params.overhang = 0 // intron overhangs should be the length of the biological read minus 1
 
 
-if(false){
+
 /*
  * Input parameters validation and preparation
  */
 //----- TRANSCRIPTOME -----//
 //if(!params.transindex) exit 1, "Transcriptome index file path is mandatory (will be created if it does not exist)."
-transindex_file = file(params.transindex)
-if(!transindex_file.exists() and params.transcriptome!="") transcriptome_file = file(params.transcriptome)
-else exit 1, "Missing transcriptome file or transcriptome index file."
+if(!params.velomode){
+  transindex_file = file(params.transindex)
+  if(!transindex_file.exists() and params.transcriptome!="") transcriptome_file = file(params.transcriptome)
+  else exit 1, "Missing transcriptome file or transcriptome index file."
+}
 
 //----- READS -----//
 R1files = Channel
@@ -87,9 +89,12 @@ if(!params.t2g){
     Channel.fromPath(params.t2g)
         .set{t2g_kal}
 }
-}
+
 //----- RNA VELOCITY -----//
+if(params.velomode){
 gtffname = file(params.gtf)["baseName"].replaceFirst(/.gtf/, "")
+t2gfname = file(params.t2g)["baseName"].replaceFirst(/.txt/, "")
+}
 
 
 
@@ -781,7 +786,7 @@ process intronTranscriptRef {
     path "${gtffname}_intronsPlus${params.overhang}_corr.gtf"
     path "${genome}.fai"
     path "${gtffname}_intronsPlus${params.overhang}_corr.fa"
-    path "transcriptome_and_intronsPlus${params.overhang}_corr.fa"
+    path "${t2gname}_and_intronsPlus${params.overhang}_corr.fa"
     
     storeDir file(params.genome).getParent()
     
@@ -792,7 +797,52 @@ process intronTranscriptRef {
     sed 's/sequence_feature/exon/g' ${gtf} | sed 's/intron/exon/g' - > ${gtffname}_intronsPlus${params.overhang}_corr.gtf
     samtools faidx ${genome}
     gffread -g ${genome} -w ${gtffname}_intronsPlus${params.overhang}_corr.fa ${gtffname}_intronsPlus${params.overhang}_corr.gtf
-    gzip -cd ${transcriptome} | cat - ${gtffname}_intronsPlus${params.overhang}_corr.fa > transcriptome_and_intronsPlus${params.overhang}_corr.fa
+    gzip -cd ${transcriptome} | cat - ${gtffname}_intronsPlus${params.overhang}_corr.fa > ${t2gname}_and_intronsPlus${params.overhang}_corr.fa
+    """
+}
+
+/*
+ * Make intron t2g and intron/cDNA capture lists
+ */
+process makeCaptureLists{
+    input:
+    path gtf
+    path t2g
+    
+    output:
+    path "${t2gname}_capture.txt"
+    path "${gtffname}_intronsPlus${params.overhang}_capture.txt"
+    path "${t2gname}_and_intronsPlus${params.overhang}_t2g.txt" //joint t2g
+    
+    storeDir file(params.genome).getParent()
+    
+    when: params.velomode
+    
+    script:
+    """
+    #!/usr/bin/env python
+    
+    import pandas as pd
+    
+    # open intron gtf
+    introngtf = pd.read_csv("${gtf}", keep_default_na = False, sep = "\t", comment="#")
+    introngtf = introngtf.loc[introngtf.iloc[:,2]=="exon",:]
+    
+    # open cDNA t2g
+    cdnat2g = pd.read_csv("${t2g}", keep_default_na = False, sep = "\t", header = None)
+    
+    # get cDNA capture list (column 0)
+    cdnat2g.iloc[:,0:1].to_csv("${t2gname}_capture.txt", sep = "\t", header=False, index=False)
+    
+    # make intron t2g
+    
+    
+    # get intron capture list (column 0)
+    
+    
+    # get combined t2g
+    
+    
     """
 }
 
@@ -825,8 +875,8 @@ process captureInEx {
     path outbus // corrsort.out
     path matrix // pseudoal.out[1]
     path transcripts // pseudoal.out[2]
-    path intronsfile
-    path exonsfile
+    path intronsfile // this is the first column of the INTRON t2g
+    path exonsfile // this is the first column of the t2g
     // don't forget this works with complement sets!
     // https://bustools.github.io/BUS_notebooks_R/velocity.html
 
@@ -855,6 +905,7 @@ process countInEx {
     
     
     output:
+    
         
     storeDir params.outdir
     
@@ -874,6 +925,7 @@ process processInEx {
     
     
     output:
+    
         
     storeDir params.outdir
     
@@ -929,6 +981,9 @@ workflow {
     getIntronCoord(file(params.gtf), params.overhang)
     intronTranscriptRef(getIntronCoord.out[1], file(params.genome), file(params.transcriptome))
     indexInEx(intronTranscriptRef.out[3])
+    pseudoal(indexInEx.out, read_files_kallisto.collect())
+    corrsort(pseudoal.out[0], file(params.white))
+    captureInEx(corrsort.out, pseudoal.out[1], pseudoal.out[2], , )
   }
 }
 
