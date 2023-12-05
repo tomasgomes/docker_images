@@ -34,6 +34,7 @@ params.images = false
 params.velomode = false
 params.genome = false
 params.gtf = false
+params.geneid = "name" // one of "id", "name", or "both" (should be as is on t2g)
 params.overhang = 0 // intron overhangs should be the length of the biological read minus 1
 
 
@@ -93,7 +94,7 @@ if(!params.t2g){
 //----- RNA VELOCITY -----//
 if(params.velomode){
 gtffname = file(params.gtf)["baseName"].replaceFirst(/.gtf/, "")
-t2gfname = file(params.t2g)["baseName"].replaceFirst(/.txt/, "")
+t2gname = file(params.t2g)["baseName"].replaceFirst(/.txt/, "")
 }
 
 
@@ -812,6 +813,7 @@ process makeCaptureLists{
     output:
     path "${t2gname}_capture.txt"
     path "${gtffname}_intronsPlus${params.overhang}_capture.txt"
+    path "intronsPlus${params.overhang}_t2g.txt" //intron t2g
     path "${t2gname}_and_intronsPlus${params.overhang}_t2g.txt" //joint t2g
     
     storeDir file(params.genome).getParent()
@@ -820,12 +822,13 @@ process makeCaptureLists{
     
     script:
     """
-    #!/usr/bin/env python
+    #!/usr/bin/env python3
     
     import pandas as pd
     
     # open intron gtf
-    introngtf = pd.read_csv("${gtf}", keep_default_na = False, sep = "\t", comment="#")
+    introngtf = pd.read_csv("${gtf}", keep_default_na = False, sep = "\t", 
+                            comment="#", low_memory=False, index_col=False)
     introngtf = introngtf.loc[introngtf.iloc[:,2]=="exon",:]
     
     # open cDNA t2g
@@ -835,14 +838,53 @@ process makeCaptureLists{
     cdnat2g.iloc[:,0:1].to_csv("${t2gname}_capture.txt", sep = "\t", header=False, index=False)
     
     # make intron t2g
+    gene_transcript = [x[1:] for x in introngtf.iloc[:,8].str.split("; ")]
+    transcripts = []
+    genes = []
+    gnames = []
+    for x in gene_transcript:
+      hasT = False
+      hasG = False
+      hasN = False
+      for e in x:
+        if e.startswith("transcript_id"):
+          transcripts.append(e.split(" ")[1].strip('"'))
+          hasT = True
+        if e.startswith("gene_id"):
+          genes.append(e.split(" ")[1].strip('"'))
+          hasG = True
+        if e.startswith("gene_name"):
+          gnames.append(e.split(" ")[1].strip('"'))
+          hasN = True
+      if not hasT:
+        transcripts.append("")
+      if not hasG:
+        genes.append("")
+      if not hasN:
+        gnames.append("")
     
+    #transcripts = [e.split(" ")[1].strip('"') for x in gene_transcript for e in x if e.startswith("transcript_id")]
+    #genes = [e.split(" ")[1].strip('"') for x in gene_transcript for e in x if e.startswith("gene_id")]
+    #gnames = [e.split(" ")[1].strip('"') for x in gene_transcript for e in x if e.startswith("gene_name")]
+    
+    t2gnote = pd.DataFrame([transcripts, genes, gnames]).T
+    t2gnote.columns = ["trans", "id", "name"]
+    t2gnote.loc[t2gnote["name"]=="","name"] = t2gnote.loc[t2gnote["name"]=="","id"]
+    t2gnote["both"] = t2gnote["id"]+"_"+t2gnote["name"]
+    t2g = t2gnote.loc[:,["trans", "${params.geneid}"]]
     
     # get intron capture list (column 0)
-    
+    t2g.iloc[:,0:1].to_csv("${gtffname}_intronsPlus${params.overhang}_capture.txt", 
+                           sep = "\t", header=False, index=False)
+                           
+    # get intron t2g
+    t2g.iloc[:,0:2].to_csv("intronsPlus${params.overhang}_t2g.txt", 
+                           sep = "\t", header=True, index=False)
     
     # get combined t2g
-    
-    
+    cdnat2g.columns = ["trans", "${params.geneid}"]
+    pd.concat([cdnat2g, t2g]).to_csv("${t2gname}_and_intronsPlus${params.overhang}_t2g.txt", 
+                           sep = "\t", header=False, index=False)
     """
 }
 
@@ -890,6 +932,7 @@ process captureInEx {
 
     script:
     """
+    mkdir -p ${params.samplename}
     bustools capture -s -x -o ${params.samplename}/spliced.bus -c $intronsfile \\
         -e ${matrix} -t ${transcripts} ${outbus}
     bustools capture -s -x -o ${params.samplename}/unspliced.bus -c $exonsfile \\
@@ -901,19 +944,28 @@ process captureInEx {
  * Count introns and exons
  */
 process countInEx {
+    
     input:
-    
-    
+    each path(outbus)
+    path outmat
+    path outtrans
+    path t2g
+
     output:
-    
-        
+    path "${params.samplename}/${busname}.mtx"
+    path "${params.samplename}/${busname}.barcodes.txt"
+    path "${params.samplename}/${busname}.genes.txt"
+
     storeDir params.outdir
     
     when: params.velomode
-    
+
     script:
+    busname = file(outbus)["baseName"].replaceFirst(/.bus/, "")
     """
-    
+    mkdir -p ${params.samplename}
+    bustools count --em -t ${outtrans} -e ${outmat} -g $t2g --genecounts \\ 
+    -o ${params.samplename}/${busname} ${outbus}
     """
 }
 
@@ -980,10 +1032,15 @@ workflow {
   } else{
     getIntronCoord(file(params.gtf), params.overhang)
     intronTranscriptRef(getIntronCoord.out[1], file(params.genome), file(params.transcriptome))
+    makeCaptureLists(intronTranscriptRef.out[0], t2g_kal.collect())
     indexInEx(intronTranscriptRef.out[3])
     pseudoal(indexInEx.out, read_files_kallisto.collect())
     corrsort(pseudoal.out[0], file(params.white))
-    captureInEx(corrsort.out, pseudoal.out[1], pseudoal.out[2], , )
+    captureInEx(corrsort.out, pseudoal.out[1], pseudoal.out[2], makeCaptureLists.out[1], makeCaptureLists.out[0])
+    //countInEx(captureInEx.out[0], captureInEx.out[1], pseudoal.out[1], pseudoal.out[2], makeCaptureLists.out[3])
+    busl = captureInEx.out.collect()
+    countInEx(busl, pseudoal.out[1], pseudoal.out[2], makeCaptureLists.out[3])
+    //countInEx(captureInEx.out[1], pseudoal.out[1], pseudoal.out[2], makeCaptureLists.out[3])
   }
 }
 

@@ -32,7 +32,14 @@ docker build -t nextflow_kallisto_sc ./
 ## https://www.10xgenomics.com/support/software/space-ranger/downloads
 ## (or your preferred version) to get the download URL
 ## and set the version accordingly
-docker build -t nextflow_kallisto_sc --build-arg SPACERANGER_VERSION="2.1.1" --build-arg DOWNLOAD_URL="https://cf.10xgenomics.com/releases/spatial-exp/spaceranger-2.1.1.tar.gz?Expires=1700166299&Key-Pair-Id=APKAI7S6A5RYOXBWRPDA&Signature=bnKLW16EhQ3IOGxf5jIFp9kuc9lgsF4fBFWX8R0-neFe34FPLEErTMyrBTNFHClBwDkwH96hL1lNTc67Ig4M6Bdkmkp5isAKfIHpOGYZ8RzQU-b4YSSEn4xaBG1r-u7uaQUBjrKjuUGwcueGyRJ22XSaHlAeTA-85RvH5yajJYCp9socvGnQDUyTEEtG~s8AjnwNyeHhd2jM2YsRFAIKG9lYqD0OjhFC7Hp98efP0AsfBdKwmGWY9xlCOLwEyW4um7~1b9jKAOHprqIXcmUPl61fXoh-NplytIg-O5K9goGUitRy~JSDX-ZR6RX~UMD7LvBxJBJZn11JNy-7Q-34xw__" .
+docker build -t nextflow_kallisto_sc --build-arg SPACERANGER_VERSION="2.1.1" --build-arg DOWNLOAD_URL="https://cf.10xgenomics.com/releases/spatial-exp/spaceranger-2.1.1.tar.gz?Expires=1701729264&Key-Pair-Id=APKAI7S6A5RYOXBWRPDA&Signature=FZx5Wa0rXXktHv-C~q6mKlr07E2d5THecp8Be-iF0uefEdnUU-0iM4vw-2WhES2Or36Z3GO7gqcC7CGavvFF5cpAXGUkvjobYZGj62tRY8POoSekm-ii7tz4ez4XAijINmm60Km~KSBHBlUb~yMEmRfTxG17uXI4TjfhomATd7mWAbld5aYjxBQmeY-Fk2pzUgBD9Ne4uRinxlSjkm8ICMJKLKw7yslKK0LxJA4Ti9j8oP8s4D3osTxWMiPeYTb~2bAwTaMy8PBDnC2i9hWExYKR3K7pZI1-miXHT3V~56IM27H4J-xgLQ-DUpeVQ99TatzIw4ohRZbvsQYxC7ZIWw__" .
+```
+
+## Pulling the image
+
+```{bash}
+# a script to pull it on a computing is required when the image is too large, as it may fill the /tmp folder
+sbatch singularity_pull_img.sh
 ```
 
 ## Run

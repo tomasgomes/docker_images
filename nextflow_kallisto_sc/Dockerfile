@@ -47,7 +47,7 @@ RUN apt-get install -y llvm-11
 RUN apt-get install -y libgeos-dev
 ## python stuff
 RUN LLVM_CONFIG=/usr/lib/llvm-11/bin/llvm-config pip3 install llvmlite
-RUN pip3 install numpy umap-learn
+RUN pip3 install numpy umap-learn pandas scanpy squidpy scvelo
 
 
 # R
