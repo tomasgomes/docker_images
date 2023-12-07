@@ -909,23 +909,21 @@ process indexInEx {
 }
 
 /*
- * Subset introns and exons
+ * Subset introns
  */
-process captureInEx {
+process captureIn {
 
     input:
     path outbus // corrsort.out
     path matrix // pseudoal.out[1]
     path transcripts // pseudoal.out[2]
     path intronsfile // this is the first column of the INTRON t2g
-    path exonsfile // this is the first column of the t2g
     // don't forget this works with complement sets!
     // https://bustools.github.io/BUS_notebooks_R/velocity.html
 
     output:
-    path "${params.samplename}/spliced.bus"
-    path "${params.samplename}/unspliced.bus"
-    
+    path("${params.samplename}/spliced.bus")
+
     storeDir params.outdir
     
     when: params.velomode
@@ -935,18 +933,44 @@ process captureInEx {
     mkdir -p ${params.samplename}
     bustools capture -s -x -o ${params.samplename}/spliced.bus -c $intronsfile \\
         -e ${matrix} -t ${transcripts} ${outbus}
+    """
+}
+
+/*
+ * Subset exons
+ */
+process captureEx {
+
+    input:
+    path outbus // corrsort.out
+    path matrix // pseudoal.out[1]
+    path transcripts // pseudoal.out[2]
+    path exonsfile // this is the first column of the t2g
+    // don't forget this works with complement sets!
+    // https://bustools.github.io/BUS_notebooks_R/velocity.html
+
+    output:
+    path("${params.samplename}/unspliced.bus")
+    
+    storeDir params.outdir
+    
+    when: params.velomode
+
+    script:
+    """
+    mkdir -p ${params.samplename}
     bustools capture -s -x -o ${params.samplename}/unspliced.bus -c $exonsfile \\
         -e ${matrix} -t ${transcripts} ${outbus}
     """
 }
 
 /*
- * Count introns and exons
+ * Count introns
  */
-process countInEx {
+process countIn {
     
     input:
-    each path(outbus)
+    path outbus
     path outmat
     path outtrans
     path t2g
@@ -964,8 +988,35 @@ process countInEx {
     busname = file(outbus)["baseName"].replaceFirst(/.bus/, "")
     """
     mkdir -p ${params.samplename}
-    bustools count --em -t ${outtrans} -e ${outmat} -g $t2g --genecounts \\ 
-    -o ${params.samplename}/${busname} ${outbus}
+    bustools count --em -t ${outtrans} -e ${outmat} -g ${t2g} --genecounts -o ${params.samplename}/${busname} ${outbus}
+    """
+}
+
+/*
+ * Count exons
+ */
+process countEx {
+    
+    input:
+    path outbus
+    path outmat
+    path outtrans
+    path t2g
+
+    output:
+    path "${params.samplename}/${busname}.mtx"
+    path "${params.samplename}/${busname}.barcodes.txt"
+    path "${params.samplename}/${busname}.genes.txt"
+
+    storeDir params.outdir
+    
+    when: params.velomode
+
+    script:
+    busname = file(outbus)["baseName"].replaceFirst(/.bus/, "")
+    """
+    mkdir -p ${params.samplename}
+    bustools count --em -t ${outtrans} -e ${outmat} -g ${t2g} --genecounts -o ${params.samplename}/${busname} ${outbus}
     """
 }
 
@@ -974,18 +1025,81 @@ process countInEx {
  */
 process processInEx {
     input:
-    
+    path smtx
+    path sbc
+    path sg
+    path umtx
+    path ubc
+    path ug
     
     output:
-    
+    path "figures/scvelo_proportions_${params.samplename}.pdf"
+    path "${params.samplename}_sdata.h5ad"
         
-    storeDir params.outdir
+    storeDir "${params.outdir}/${params.samplename}"
     
     when: params.velomode
 
     script:
     """
+    #!/usr/bin/env python3
     
+    # single-cell packages
+    import scvelo as scv
+    import scanpy as sc
+    import anndata as ad
+    
+    # support packages
+    import pandas as pd
+    from scipy.io import mmread
+    
+    ### pip install -U scvelo matplotlib==3.7.0
+    
+    # load barcodes and get intersection sets
+    ## CHANGE ONCE NORMAL COUNTS ARE ADDED
+    sbc = pd.read_csv("${sbc}", header=None).iloc[:,0].values
+    ubc = pd.read_csv("${ubc}", header=None).iloc[:,0].values
+    common_bc = [x for x in sbc if x in ubc]
+    
+    # load spliced counts
+    cellnames = pd.read_csv("${sbc}", header=None).iloc[:,0].values
+    genenames = pd.read_csv("${sg}", header=None).iloc[:,0].values
+    sdata = ad.read_mtx("${smtx}")
+    sdata.obs_names = cellnames
+    sdata.var_names = genenames
+    sdata = sdata[common_bc,:]
+    sdata.layers['spliced'] = sdata[common_bc,:].X
+    
+    # load unspliced counts
+    cellnames = pd.read_csv("${ubc}", header=None).iloc[:,0].values
+    genenames = pd.read_csv("${ug}", header=None).iloc[:,0].values
+    ndata = ad.read_mtx("${umtx}")
+    ndata.obs_names = cellnames
+    ndata.var_names = genenames
+    sdata.layers['unspliced'] = ndata[common_bc,:].X
+    
+    # load "normal counts"
+    #cellnames = pd.read_csv("genecounts.barcodes.txt", header=None).iloc[:,0].values
+    #genenames = pd.read_csv("genecounts.genes.txt", header=None).iloc[:,0].values
+    #adata = ad.read_mtx("genecounts.mtx")
+    #adata.obs_names = cellnames
+    #adata.var_names = genenames
+    
+    #sdata.layers['X'] = adata[sdata.obs_names,:].X
+    #sdata.X = adata[sdata.obs_names,:].X
+    
+    # load empty drops results
+    #meta = pd.read_csv("genecounts.barcodes.txt", index_col = 0, header=None)
+    #meta.index.name='cells'
+    #sdata.obs = meta
+    
+    ## filter empty droplets
+    
+    # save object
+    sdata.write_h5ad("${params.samplename}_sdata.h5ad")
+    
+    # show proportions
+    scv.pl.proportions(sdata, save = "${params.samplename}.pdf", show = False)
     """
 }
 
@@ -1036,11 +1150,12 @@ workflow {
     indexInEx(intronTranscriptRef.out[3])
     pseudoal(indexInEx.out, read_files_kallisto.collect())
     corrsort(pseudoal.out[0], file(params.white))
-    captureInEx(corrsort.out, pseudoal.out[1], pseudoal.out[2], makeCaptureLists.out[1], makeCaptureLists.out[0])
-    //countInEx(captureInEx.out[0], captureInEx.out[1], pseudoal.out[1], pseudoal.out[2], makeCaptureLists.out[3])
-    busl = captureInEx.out.collect()
-    countInEx(busl, pseudoal.out[1], pseudoal.out[2], makeCaptureLists.out[3])
-    //countInEx(captureInEx.out[1], pseudoal.out[1], pseudoal.out[2], makeCaptureLists.out[3])
+    captureIn(corrsort.out, pseudoal.out[1], pseudoal.out[2], makeCaptureLists.out[1])
+    captureEx(corrsort.out, pseudoal.out[1], pseudoal.out[2], makeCaptureLists.out[0])
+    countIn(captureIn.out, pseudoal.out[1], pseudoal.out[2], makeCaptureLists.out[3])
+    countEx(captureEx.out, pseudoal.out[1], pseudoal.out[2], makeCaptureLists.out[3])
+    processInEx(countEx.out[0],countEx.out[1],countEx.out[2],
+    countIn.out[0],countIn.out[1],countIn.out[2])
   }
 }
 

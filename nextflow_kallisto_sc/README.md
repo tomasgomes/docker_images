@@ -6,9 +6,7 @@ TODO:
 
 -   add support for velocity pipeline
 
-    -   add t2g file generation
-    
-    -   this should run both the normal and velocity pipeline
+    -   should run both the normal and velocity pipeline
   
 -   fix MT genes
 
@@ -23,6 +21,8 @@ TODO:
     -   account for spatial as well
 
 -   add bustools umicorrect
+
+- streamline code for RNA velocity
 
 ## Build image
 

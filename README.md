@@ -38,7 +38,7 @@ docker push tomasgomes/nextflow_kallisto_sc:0.1
 ## TODO
 
 -   kallisto mapping
- -   enable RNA velocity quantification
+ -   various improvements (see README)
 -   base interactive computational image
 -   SRA download image
 -   base jupyter/python image (based off of existing RStudio image)
