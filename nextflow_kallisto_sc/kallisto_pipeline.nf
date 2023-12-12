@@ -80,7 +80,8 @@ if(!params.samplename) exit 1, "Please provide a name for this sample"
 
 if(!params.protocol) exit 1, "Please provide an adequate protocol"
 
-if(!params.white && (params.protocol!='batch' && params.protocol!='bulk_quant')){
+if(!params.white && (params.protocol=='10xv2' || params.protocol=='10xv3' || 
+params.protocol=='visiumv1' || params.protocol=='SPLIT-SEQ' || params.protocol=='sc5pe')){
     exit 1, "Barcode whitelist is mandatory for Chromium, Visium, and ParseBio runs."
 }
 
