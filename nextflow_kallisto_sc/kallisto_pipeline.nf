@@ -54,14 +54,14 @@ if(!params.velomode){
 R1files = Channel
     .from(params.reads.tokenize())
     .flatMap{ files(it) }
-    .filter{it =~ /.*R1.*/}
+    .filter{it =~ /.*_R1.*/ || it =~ /.*_1\.f*/}
     .toSortedList()
     .flatten()
     //.view()
 R2files = Channel
     .from(params.reads.tokenize())
     .flatMap{ files(it) }
-    .filter{it =~ /.*R2.*/}
+    .filter{it =~ /.*_R2.*/ || it =~ /.*_2\.f*/}
     .toSortedList()
     .flatten()
     //.view()
@@ -80,8 +80,8 @@ if(!params.samplename) exit 1, "Please provide a name for this sample"
 
 if(!params.protocol) exit 1, "Please provide an adequate protocol"
 
-if(!params.white && (params.protocol=='10xv2' || params.protocol=='10xv3' || 
-params.protocol=='visiumv1' || params.protocol=='SPLIT-SEQ' || params.protocol=='sc5pe')){
+def needWhitelist = ['10xv1', '10xv2', '10xv3', 'visiumv1', 'SPLIT-SEQ', 'sc5pe', 'Visium']
+if(!params.white && params.protocol in needWhitelist){
     exit 1, "Barcode whitelist is mandatory for Chromium, Visium, and ParseBio runs."
 }
 
@@ -246,7 +246,8 @@ process corrsort {
     when: params.protocol!='bulk_quant'
 
     script:
-    if(params.protocol=='batch')
+    //if(params.protocol=='batch')
+    if(params.protocol !in needWhitelist)
     """
     mkdir -p ${params.samplename}
     bustools sort -o ${params.samplename}/output.cor.sort.bus -t ${params.cores} ${outbus}
@@ -1124,7 +1125,10 @@ workflow {
       if(params.protocol=='batch'){
         corrsort(pseudoalBatch.out[0], pseudoalBatch.out[1])
         // pseudoalBatch.out[1] only serves as placeholder
-      } else{
+      } else if(params.protocol !in needWhitelist){
+        corrsort(pseudoal.out[0], pseudoal.out[2])
+        // pseudoal.out[2] only serves as placeholder
+      }else{
         corrsort(pseudoal.out[0], file(params.white))
       }
       // umi counts
