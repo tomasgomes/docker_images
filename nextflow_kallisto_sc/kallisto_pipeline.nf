@@ -327,7 +327,7 @@ process makeSeuratPlate {
     
     storeDir "${params.outdir}/${params.samplename}"
 
-    when: params.protocol=='batch' && params.protocol!='bulk_quant'
+    when: params.protocol !in needWhitelist && params.protocol!='bulk_quant'
 
     script:
     """
