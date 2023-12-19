@@ -60,6 +60,12 @@ docker run --rm -t -v $(pwd):/rootvol nextflow_kallisto_sc run docker_images/nex
 # Bulk, one sample using quant
 docker run --rm -t -v $(pwd):/rootvol nextflow_kallisto_sc run docker_images/nextflow_kallisto_sc/kallisto_pipeline.nf --transcriptome data/references/human/human_Ens109_GRCh38p13.fa.gz --transindex human_Ens109_GRCh38p13.kalid --t2g data/references/human/human_Ens109_GRCh38p13_t2g.txt --samplename "test_bulk" --outdir ./ --protocol bulk_quant --cores 4 --reads "./test_datasets/SS2/fastq/18689_2390*.fastq.gz"
 
+# SORTseq
+## the whitelist was obtained from a project, not sure if it will change, but doesn't seem to be available online
+## they claim it uses CEL-seq2, but the structure is slightly different (inverted, longer bc)
+## requires the --umi-gene option for counting, since the UMIs don't have enough complexity (only up to 4096)
+docker run --rm -t -v $(pwd):/rootvol nextflow_kallisto_sc run /rootvol/scripts/kallisto_pipeline.nf --transcriptome /rootvol/references/human/human_Ens110_GRCh38p14_unspliced_simp.fa.gz --transindex human_Ens110_GRCh38p14_unspliced_simp.kalid --t2g /rootvol/references/human/human_Ens110_GRCh38p14_unspliced_t2g.txt --white /rootvol/references/barcodes/position_of_cells_on_plate_bcOnly.tsv --samplename "HUB-JP-049" --outdir /rootvol/lacrimal_glands/processed_data/ --protocol 0,6,14:0,0,6:1,0,0 --reads "/rootvol/lacrimal_glands/raw_data/fastq/SRX9801882/*.fastq.gz" --cores 12
+
 # ParseBio (uses SPLIT-SEQ protocol)
 
 

@@ -80,9 +80,15 @@ if(!params.samplename) exit 1, "Please provide a name for this sample"
 
 if(!params.protocol) exit 1, "Please provide an adequate protocol"
 
-def needWhitelist = ['10xv1', '10xv2', '10xv3', 'visiumv1', 'SPLIT-SEQ', 'sc5pe', 'Visium']
+// these really need barcodes
+// other protocols can be submitted without, but also optionally with
+def needWhitelist = ['10xv1', '10xv2', '10xv3', 'sc5pe', 'visiumv1', 'SPLIT-SEQ', 'Visium']
+def dropletProtocol = ['10xv1', '10xv2', '10xv3', 'sc5pe']
+def otherBcProtocols = ['visiumv1', 'SPLIT-SEQ', 'Visium']
 if(!params.white && params.protocol in needWhitelist){
     exit 1, "Barcode whitelist is mandatory for Chromium, Visium, and ParseBio runs."
+} else if(params.white && params.protocol !in needWhitelist){
+  needWhitelist.add(params.protocol)
 }
 
 if(!params.t2g){
@@ -305,6 +311,13 @@ process countbus {
     when: params.protocol!='bulk_quant'
 
     script:
+    if(params.protocol=="CELSEQ2" || params.protocol=="0,6,14:0,0,6:1,0,0")
+    """
+    mkdir -p ${params.samplename}
+    bustools count --em -t ${outtrans} -e ${outmat} --umi-gene -g $t2g --genecounts \\
+    -o ${params.samplename}/genecounts ${outbus}
+    """
+    else
     """
     mkdir -p ${params.samplename}
     bustools count --em -t ${outtrans} -e ${outmat} -g $t2g --genecounts \\
@@ -327,7 +340,7 @@ process makeSeuratPlate {
     
     storeDir "${params.outdir}/${params.samplename}"
 
-    when: params.protocol !in needWhitelist && params.protocol!='bulk_quant'
+    when: params.protocol=="batch" || (params.protocol in needWhitelist && params.protocol !in dropletProtocol && params.protocol !in otherBcProtocols)
 
     script:
     """
@@ -381,7 +394,7 @@ process makeSeurat10x {
     
     storeDir "${params.outdir}/${params.samplename}"
 
-    when: params.protocol=='10xv3' || params.protocol=='10xv2' || params.protocol=='sc5pe'
+    when: params.protocol in dropletProtocol
 
     script:
     """
@@ -609,7 +622,7 @@ process getTissue {
     
     storeDir "${params.outdir}/${params.samplename}"
 
-    when: params.protocol=='visiumv1'
+    when: params.protocol=='visiumv1' || params.protocol=='Visium'
 
     script:
     if(!params.imageal)
@@ -653,7 +666,7 @@ process makeSeuratVisium {
     
     storeDir "${params.outdir}/${params.samplename}"
 
-    when: params.protocol=='visiumv1'
+    when: params.protocol=='visiumv1' || params.protocol=='Visium'
 
     script:
     """
